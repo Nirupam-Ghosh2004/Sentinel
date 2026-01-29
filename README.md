@@ -88,8 +88,8 @@
 
 ### **1. Clone Repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/malicious-url-detector.git
-cd malicious-url-detector
+git clone https://github.com/Nirupam-Ghosh2004/Sentinel.git
+cd Sentinel
 ```
 
 ### **2. Setup Backend**
@@ -260,9 +260,9 @@ This project is licensed under the MIT License.
 
 ## 👤 **Author**
 
-**Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- Email: your.email@example.com
+**Nirupam Ghosh**
+- GitHub: [@Nirupam-Ghosh2004](https://github.com/Nirupam-Ghosh2004)
+- Email: nirupam.ghosh0423@gmail.com
 
 ---
 
@@ -277,6 +277,6 @@ This project is licensed under the MIT License.
 
 ## 📊 **Statistics**
 
-![GitHub stars](https://img.shields.io/github/stars/yourusername/malicious-url-detector)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/malicious-url-detector)
-![GitHub issues](https://img.shields.io/github/issues/yourusername/malicious-url-detector)
+![GitHub stars](https://img.shields.io/github/stars/Nirupam-Ghosh2004/Sentinel)
+![GitHub forks](https://img.shields.io/github/forks/Nirupam-Ghosh2004/Sentinel)
+![GitHub issues](https://img.shields.io/github/issues/Nirupam-Ghosh2004/Sentinel)
