@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+backend/venv/
+ml-models/venv/
+datasets/venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+*.env
+
+# Data files (too large for Git)
+datasets/raw/*.csv
+datasets/raw/*.json
+datasets/raw/*.txt
+datasets/processed/*.csv
+
+# Model files (too large - will use Git LFS later if needed)
+ml-models/trained_models/*.pkl
+backend/app/ml_models/*.pkl
+
+# Cache
+*.cache
+.pytest_cache/
+.coverage
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Node modules (if any)
+node_modules/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# User feedback data
+feedback_data.json
+dynamic_whitelist.json
+
+# Mac
+.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs.db
+Desktop.ini

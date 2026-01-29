@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Website Blocked</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #141922, #090b10);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      color: #eaeaea;
+    }
+
+    /* MAIN CARD */
+    .container {
+      background: linear-gradient(145deg,
+          rgba(25, 30, 40, 0.95),
+          rgba(12, 15, 20, 0.95));
+      border-radius: 22px;
+      padding: 42px;
+      max-width: 620px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* SHIELD ICON */
+    .icon {
+      font-size: 72px;
+      margin-bottom: 18px;
+      filter: drop-shadow(0 0 12px rgba(255, 70, 70, 0.6));
+    }
+
+    /* TITLE */
+    h1 {
+      color: #ff4d4d;
+      margin-bottom: 18px;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    /* MESSAGE */
+    .message {
+      color: #b6bcc7;
+      font-size: 16px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    /* URL BOX */
+    .url {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 16px;
+      border-radius: 14px;
+      word-break: break-all;
+      margin: 20px 0;
+      font-family: "JetBrains Mono", monospace;
+      color: #ffffff;
+      font-size: 14px;
+      max-height: 110px;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* REASON BOX */
+    .reason {
+      background: rgba(255, 176, 32, 0.08);
+      border-left: 4px solid #ffb020;
+      padding: 16px;
+      margin: 24px 0;
+      text-align: left;
+      border-radius: 10px;
+      color: #ffe6b3;
+    }
+
+    .reason strong {
+      color: #ffcc66;
+    }
+
+    /* BUTTON AREA */
+    .buttons {
+      margin-top: 28px;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* BUTTON BASE */
+    button {
+      padding: 13px 32px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.25s ease;
+    }
+
+    /* CLOSE */
+    .btn-close {
+      background: linear-gradient(135deg, #ff4d4d, #d93636);
+      color: white;
+    }
+
+    .btn-close:hover {
+      box-shadow: 0 0 18px rgba(255, 77, 77, 0.6);
+      transform: translateY(-2px);
+    }
+
+    /* HOME */
+    .btn-home {
+      background: linear-gradient(135deg, #3cff9a, #1fd17c);
+      color: #062013;
+    }
+
+    .btn-home:hover {
+      box-shadow: 0 0 18px rgba(60, 255, 154, 0.6);
+      transform: translateY(-2px);
+    }
+
+    /* INFO TIP */
+    .info {
+      margin-top: 26px;
+      padding: 15px;
+      background: rgba(60, 255, 154, 0.08);
+      border-radius: 12px;
+      font-size: 14px;
+      color: #9dffd1;
+      border: 1px solid rgba(60, 255, 154, 0.25);
+    }
+
+    /* ===============================
+   AUTO THEME SWITCH
+================================ */
+
+    @media (prefers-color-scheme: light) {
+
+      body {
+        background: linear-gradient(135deg, #f4f6fb, #e9ecf3);
+        color: #222;
+      }
+
+      .container {
+        background: #ffffff;
+        color: #222;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      }
+
+      h1 {
+        color: #e53935;
+      }
+
+      .message {
+        color: #555;
+      }
+
+      .url {
+        background: #f6f7f9;
+        color: #222;
+        border: 1px solid #ddd;
+      }
+
+      .reason {
+        background: #fff8e1;
+        color: #7a5a00;
+        border-left: 4px solid #ffb300;
+      }
+
+      .info {
+        background: #e8f5e9;
+        color: #1b5e20;
+      }
+    }
+
+    /* ===============================
+   SHIELD PULSE ANIMATION
+================================ */
+
+    @keyframes shieldPulse {
+      0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.4));
+      }
+
+      50% {
+        transform: scale(1.08);
+        filter: drop-shadow(0 0 18px rgba(255, 77, 77, 0.9));
+      }
+
+      100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.4));
+      }
+    }
+
+    .icon {
+      animation: shieldPulse 2.2s ease-in-out infinite;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="icon">🛡️</div>
+    <h1>Malicious Website Blocked</h1>
+    <p class="message">This website has been identified as potentially dangerous and was blocked for your safety.</p>
+
+    <div class="url" id="blockedUrl">Loading URL...</div>
+
+    <div class="reason">
+      <strong>🔍 Detection Reason:</strong><br>
+      <span id="blockReason">Analyzing...</span>
+    </div>
+
+    <div class="buttons">
+      <button class="btn-close" id="closeBtn">✖️ Close Tab</button>
+      <button class="btn-home" id="homeBtn">🏠 Go to Google</button>
+    </div>
+
+    <div class="info">
+      💡 <strong>Tip:</strong> Avoid visiting websites with suspicious URLs, IP addresses, or unusual domain extensions.
+    </div>
+  </div>
+
+  <script src="warning.js"></script>
+</body>
+
+</html>

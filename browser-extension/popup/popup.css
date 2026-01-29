@@ -1,0 +1,138 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #0b0f14;
+  padding: 16px;
+  color: #fff;
+}
+
+/* MAIN CARD */
+.container {
+  background: linear-gradient(
+    145deg,
+    rgba(25, 30, 40, 0.95),
+    rgba(15, 18, 25, 0.95)
+  );
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* HEADER */
+.header h1 {
+  font-size: 18px;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin-bottom: 18px;
+  color: #ffffff;
+}
+
+/* STATS GRID */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.stat-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+}
+
+.stat-number {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #eaeaea;
+}
+
+/* COLORS */
+.stat-number.blocked {
+  color: #ff4d4d;
+}
+
+.stat-number.warning {
+  color: #ffb020;
+}
+
+.stat-number.safe {
+  color: #3cff9a;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #9aa4b2;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* BUTTONS */
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.25s ease;
+  font-weight: 600;
+}
+
+/* PRIMARY BUTTON */
+.btn-primary {
+  background: linear-gradient(135deg, #3a7bfd, #5f9cff);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 15px rgba(95, 156, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+/* SECONDARY BUTTON */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eaeaea;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* STATUS BOX */
+.info {
+  text-align: center;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(60, 255, 154, 0.08);
+  border: 1px solid rgba(60, 255, 154, 0.25);
+}
+
+.status-active {
+  color: #3cff9a;
+  font-weight: 700;
+}
