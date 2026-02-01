@@ -1,4 +1,7 @@
-# 🛡️ Malicious URL Detector
+<p align="center">
+  <img src="https://github.com/Nirupam-Ghosh2004/Sentinel/blob/main/readme-assets/banner.gif" alt="Header GIF">
+</p>
+
 
 **Real-time browser extension for detecting and blocking phishing, malware, and spam websites using Machine Learning and Domain Reputation Scoring.**
 
