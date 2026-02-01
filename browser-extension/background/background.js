@@ -178,7 +178,7 @@ async function checkWithBackendAPI(url) {
   try {
     // Create manual timeout (instead of AbortSignal.timeout)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     const response = await fetch(`${BACKEND_API}/check`, {
       method: 'POST',

@@ -1,45 +1,215 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Malicious URL Detector</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
+    <!-- Header -->
     <div class="header">
-      <h1>🛡️ URL Detector</h1>
-    </div>
-    
-    <div class="stats">
-      <div class="stat-item">
-        <div class="stat-number" id="totalChecked">0</div>
-        <div class="stat-label">Total Checked</div>
+      <div class="logo">
+        <svg class="shield-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z" 
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="logo-text">
+          <h1>Sentinel</h1>
+          <p class="tagline">Real-time ML Protection</p>
+        </div>
       </div>
-      <div class="stat-item">
-        <div class="stat-number blocked" id="blocked">0</div>
-        <div class="stat-label">Blocked</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-number warning" id="warnings">0</div>
-        <div class="stat-label">Warnings</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-number safe" id="legitimate">0</div>
-        <div class="stat-label">Safe</div>
+      <div class="status-indicator" id="statusIndicator">
+        <div class="status-dot"></div>
+        <span>Protected</span>
       </div>
     </div>
 
+    <!-- URL Scanner -->
+    <div class="scanner-section">
+      <h2 class="section-title">
+        <svg class="icon" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+          <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Scan URL
+      </h2>
+      
+      <div class="input-group">
+        <input 
+          type="text" 
+          id="urlInput" 
+          placeholder="Enter URL to scan (e.g., https://example.com)"
+          spellcheck="false"
+        >
+        <button id="scanBtn" class="btn-primary">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Scan
+        </button>
+      </div>
+
+      <!-- Scan Result -->
+      <div id="scanResult" class="scan-result hidden">
+        <div class="result-header">
+          <div class="result-icon" id="resultIcon"></div>
+          <div class="result-info">
+            <h3 id="resultStatus">Analyzing...</h3>
+            <p id="resultUrl"></p>
+          </div>
+        </div>
+        <div class="result-details">
+          <div class="detail-item">
+            <span class="detail-label">Confidence</span>
+            <div class="progress-bar">
+              <div class="progress-fill" id="confidenceBar"></div>
+              <span class="progress-text" id="confidenceText">0%</span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Reason</span>
+            <p class="detail-value" id="resultReason">-</p>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Processing Time</span>
+            <p class="detail-value" id="processingTime">-</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div class="stats-section">
+      <h2 class="section-title">
+        <svg class="icon" viewBox="0 0 24 24" fill="none">
+          <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" 
+                stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Protection Statistics
+      </h2>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card blocked">
+          <div class="stat-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M4.93 4.93l14.14 14.14" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Blocked</p>
+            <h3 class="stat-value" id="blockedCount">0</h3>
+          </div>
+        </div>
+
+        <div class="stat-card safe">
+          <div class="stat-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Safe</p>
+            <h3 class="stat-value" id="safeCount">0</h3>
+          </div>
+        </div>
+
+        <div class="stat-card warning">
+          <div class="stat-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Warnings</p>
+            <h3 class="stat-value" id="warningCount">0</h3>
+          </div>
+        </div>
+
+        <div class="stat-card total">
+          <div class="stat-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M9 9h6M9 13h6M9 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Total Checked</p>
+            <h3 class="stat-value" id="totalCount">0</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Threat Distribution Chart -->
+      <div class="chart-container">
+        <h3 class="chart-title">Threat Distribution</h3>
+        <div class="donut-chart" id="donutChart">
+          <svg viewBox="0 0 200 200" id="chartSvg">
+            <!-- Chart will be drawn here by JS -->
+          </svg>
+          <div class="chart-center">
+            <div class="chart-total" id="chartTotal">0</div>
+            <div class="chart-label">Total</div>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-color blocked"></div>
+            <span id="legendBlocked">Blocked: 0</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color safe"></div>
+            <span id="legendSafe">Safe: 0</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color warning"></div>
+            <span id="legendWarning">Warnings: 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Timeline -->
+      <div class="timeline-container">
+        <h3 class="chart-title">Recent Activity</h3>
+        <div id="activityTimeline" class="activity-timeline">
+          <div class="timeline-empty">
+            <svg class="empty-icon" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <p>No recent activity</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
     <div class="actions">
-      <button id="refreshBtn" class="btn btn-primary">Refresh Stats</button>
-      <button id="clearCacheBtn" class="btn btn-secondary">Clear Cache</button>
+      <button id="clearCacheBtn" class="btn-secondary">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Clear Cache
+      </button>
     </div>
 
-    <div class="info">
-      <p>Protection Status: <span class="status-active">● Active</span></p>
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-info">
+        <p>⚡ ML-Powered Protection</p>
+        <p class="version">v2.1.0</p>
+      </div>
     </div>
   </div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>

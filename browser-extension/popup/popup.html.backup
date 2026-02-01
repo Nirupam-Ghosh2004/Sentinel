@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Malicious URL Detector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛡️ URL Detector</h1>
+    </div>
+    
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-number" id="totalChecked">0</div>
+        <div class="stat-label">Total Checked</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number blocked" id="blocked">0</div>
+        <div class="stat-label">Blocked</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number warning" id="warnings">0</div>
+        <div class="stat-label">Warnings</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number safe" id="legitimate">0</div>
+        <div class="stat-label">Safe</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="refreshBtn" class="btn btn-primary">Refresh Stats</button>
+      <button id="clearCacheBtn" class="btn btn-secondary">Clear Cache</button>
+    </div>
+
+    <div class="info">
+      <p>Protection Status: <span class="status-active">● Active</span></p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

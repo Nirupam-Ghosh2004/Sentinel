@@ -40,9 +40,9 @@ class URLFeatureExtractorV2:
             
             features = {}
             
-            # ==================== IMPROVED FEATURES ====================
+            #  IMPROVED FEATURES 
             
-            # === LENGTH FEATURES (NORMALIZED) ===
+            # LENGTH FEATURES (NORMALIZED) 
             features['url_length'] = len(url)
             features['hostname_length'] = len(hostname)
             
@@ -51,12 +51,12 @@ class URLFeatureExtractorV2:
             features['query_to_url_ratio'] = len(query) / len(url) if len(url) > 0 else 0
             features['hostname_to_url_ratio'] = len(hostname) / len(url) if len(url) > 0 else 0
             
-            # === BINARY PATH FEATURES (BETTER THAN RAW LENGTH) ===
+            # BINARY PATH FEATURES (BETTER THAN RAW LENGTH) 
             features['has_path'] = 1 if len(path) > 1 else 0  # More than just '/'
             features['has_query'] = 1 if len(query) > 0 else 0
             features['long_path'] = 1 if len(path) > 50 else 0  # Flag only very long paths
             
-            # === CHARACTER DISTRIBUTION ===
+            #  CHARACTER DISTRIBUTION 
             features['num_dots'] = url.count('.')
             features['num_hyphens'] = url.count('-')
             features['num_underscores'] = url.count('_')
@@ -67,12 +67,12 @@ class URLFeatureExtractorV2:
             features['num_ampersand'] = url.count('&')
             features['num_percent'] = url.count('%')
             
-            # === DIGIT FEATURES ===
+            # DIGIT FEATURES 
             features['num_digits'] = sum(c.isdigit() for c in url)
             features['digit_ratio'] = features['num_digits'] / len(url) if len(url) > 0 else 0
             features['digits_in_hostname'] = sum(c.isdigit() for c in hostname)
             
-            # === HOSTNAME ANALYSIS ===
+            # HOSTNAME ANALYSIS 
             if hostname:
                 parts = hostname.split('.')
                 
