@@ -18,7 +18,6 @@ The result is a system that catches both known phishing patterns and zero-day th
 
 ## Demo
 
-> Screenshots and demo recordings are in the `readme-assets/` directory.
 
 | Warning Page (Block) | Warning Page (Anomaly) | Extension Popup |
 |---|---|---|
@@ -200,7 +199,7 @@ Sentinel/
 
 ---
 
-## Design Decisions
+<!-- ## Design Decisions
 
 **Why two separate models instead of one?**
 
@@ -220,7 +219,7 @@ Chrome is deprecating Manifest V2. This extension uses service workers and the `
 
 **Why not hard-block anomalies?**
 
-The anomaly engine catches structurally unusual URLs, but "unusual" doesn't always mean "dangerous". A legitimate but uncommon site will trigger it. Hard-blocking would frustrate users. Instead, anomalies show a warning page with a "Proceed Anyway" button — the user makes the final call.
+The anomaly engine catches structurally unusual URLs, but "unusual" doesn't always mean "dangerous". A legitimate but uncommon site will trigger it. Hard-blocking would frustrate users. Instead, anomalies show a warning page with a "Proceed Anyway" button — the user makes the final call. -->
 
 ---
 
@@ -305,7 +304,7 @@ Features like `path_depth` had near-zero standard deviation in the original trai
 
 ---
 
-## Roadmap
+<!-- ## Roadmap
 
 - [ ] Firefox extension support (WebExtensions API)
 - [ ] URL screenshot preview on warning page (headless Chrome capture)
@@ -316,7 +315,7 @@ Features like `path_depth` had near-zero standard deviation in the original trai
 - [ ] QR code URL scanner (decode and scan embedded URLs)
 - [ ] Chrome Web Store publication
 - [ ] Docker Compose for one-command deployment
-- [ ] Weekly security digest (summary of blocked/flagged URLs)
+- [ ] Weekly security digest (summary of blocked/flagged URLs) -->
 
 ---
 
