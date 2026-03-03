@@ -224,19 +224,28 @@ The anomaly engine catches structurally unusual URLs, but "unusual" doesn't alwa
 
 ## Performance
 
+### XGBoost classifier (on held-out test set)
+
 | Metric | Value |
 |--------|-------|
-| XGBoost accuracy | 99.89% |
-| XGBoost precision | 99.98% |
-| XGBoost recall | 99.81% |
+| Accuracy | 99.89% |
+| Precision | 99.98% |
+| Recall | 99.81% |
 | False positive rate | 0.02% (2 in 10,296) |
-| Anomaly model training data | ~274K augmented URLs |
-| Feature extraction time | < 5ms per URL |
-| End-to-end check latency | ~50-150ms (including network to localhost) |
-| Training dataset size | 137,268 labeled URLs |
-| Features per URL | 28 (anomaly) + 50 (ML classifier) |
+| Training dataset | 137,268 labeled URLs (50/50 split) |
+| Features per URL | 50 (ML) + 28 (anomaly) |
 
-The anomaly model uses minimum standard deviation floors per feature to prevent inflated z-scores on low-variance features. Without this, a binary feature like `has_punycode` (which is 0 for 99.9% of training data) would produce absurd z-scores of 2000+ for any punycode URL.
+**A note on these numbers**: The test accuracy is high because the dataset is relatively easy to classify. Most legitimate URLs are bare domains (`socialdeal.nl`, `labnol.org`), while most malicious URLs have obvious structural tells (IP addresses, random subdomains, free hosting platforms). With 50 handcrafted features, XGBoost can separate the two classes with minimal effort.
+
+In the real world, phishing sites increasingly use clean-looking domains (`lcloudinc.com/DnCqA/`) that are structurally similar to legitimate URLs. The XGBoost classifier alone would struggle with these. This is the primary reason the anomaly detection engine exists — it provides a second layer of defense using unsupervised learning that doesn't depend on labeled examples.
+
+### Anomaly engine
+
+| Metric | Value |
+|--------|-------|
+| Training data | ~274K augmented legitimate URLs |
+| Feature extraction | < 5ms per URL |
+| End-to-end latency | ~50-150ms (localhost round-trip) |
 
 ---
 
