@@ -4,7 +4,10 @@ let stats = {
   totalChecked: 0,
   blocked: 0,
   warnings: 0,
-  legitimate: 0
+  legitimate: 0,
+  anomaliesDetected: 0,
+  anomalySuspicious: 0,
+  homographsDetected: 0
 };
 
 let recentActivity = [];
@@ -22,7 +25,7 @@ function setupEventListeners() {
   const scanBtn = document.getElementById('scanBtn');
   const urlInput = document.getElementById('urlInput');
   const clearCacheBtn = document.getElementById('clearCacheBtn');
-  
+
   scanBtn.addEventListener('click', scanURL);
   urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') scanURL();
@@ -36,6 +39,10 @@ async function loadStats() {
     const response = await chrome.runtime.sendMessage({ action: 'getStats' });
     if (response) {
       stats = response;
+      // Render recent activity from background
+      if (response.recentActivity && response.recentActivity.length > 0) {
+        renderActivity(response.recentActivity);
+      }
     }
   } catch (error) {
     console.error('Failed to load stats:', error);
@@ -47,19 +54,19 @@ async function scanURL() {
   const urlInput = document.getElementById('urlInput');
   const scanBtn = document.getElementById('scanBtn');
   const resultDiv = document.getElementById('scanResult');
-  
+
   let url = urlInput.value.trim();
-  
+
   if (!url) {
     showNotification('Please enter a URL', 'warning');
     return;
   }
-  
+
   // Add protocol if missing
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = 'https://' + url;
   }
-  
+
   // Validate URL
   try {
     new URL(url);
@@ -67,7 +74,7 @@ async function scanURL() {
     showNotification('Invalid URL format', 'warning');
     return;
   }
-  
+
   // Show loading state
   scanBtn.classList.add('loading');
   scanBtn.innerHTML = `
@@ -79,31 +86,49 @@ async function scanURL() {
     </svg>
     Scanning...
   `;
-  
+
   resultDiv.classList.add('hidden');
-  
+
   const startTime = Date.now();
-  
+
   try {
-    // Call backend API
-    const response = await fetch('http://localhost:8000/api/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url })
-    });
-    
-    if (!response.ok) {
-      throw new Error('API request failed');
+    // Call both endpoints in parallel
+    const [mlResponse, anomalyResponse] = await Promise.allSettled([
+      fetch('http://localhost:8000/api/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      }),
+      fetch('http://localhost:8000/api/anomaly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      })
+    ]);
+
+    let result = null;
+    let anomalyResult = null;
+
+    if (mlResponse.status === 'fulfilled' && mlResponse.value.ok) {
+      result = await mlResponse.value.json();
     }
-    
-    const result = await response.json();
+
+    if (anomalyResponse.status === 'fulfilled' && anomalyResponse.value.ok) {
+      anomalyResult = await anomalyResponse.value.json();
+    }
+
+    if (!result && !anomalyResult) {
+      throw new Error('Both APIs failed');
+    }
     const processingTime = Date.now() - startTime;
-    
-    displayResult(result, url, processingTime);
-    
+
+    displayResult(result, anomalyResult, url, processingTime);
+
     // Add to activity
-    addToActivity(url, result.status);
-    
+    const displayStatus = anomalyResult?.risk_level === 'HIGH_ANOMALY' ? 'ANOMALY'
+      : (result?.status || 'LEGITIMATE');
+    addToActivity(url, displayStatus);
+
   } catch (error) {
     console.error('Scan error:', error);
     showNotification('Failed to scan URL. Is the backend running?', 'error');
@@ -121,7 +146,7 @@ async function scanURL() {
 }
 
 // Display scan result
-function displayResult(result, url, processingTime) {
+function displayResult(result, anomalyResult, url, processingTime) {
   const resultDiv = document.getElementById('scanResult');
   const resultIcon = document.getElementById('resultIcon');
   const resultStatus = document.getElementById('resultStatus');
@@ -130,73 +155,154 @@ function displayResult(result, url, processingTime) {
   const confidenceText = document.getElementById('confidenceText');
   const resultReason = document.getElementById('resultReason');
   const processingTimeEl = document.getElementById('processingTime');
-  
-  // Determine status
+
   let status, icon, iconClass;
-  
-  if (result.status === 'MALICIOUS') {
-    status = '🚫 Malicious Website';
-    icon = '⚠️';
-    iconClass = 'malicious';
-  } else if (result.status === 'SUSPICIOUS') {
-    status = '⚠️ Suspicious Website';
-    icon = '⚠️';
+  let confidence = 0;
+  let reason = '';
+
+  // Prioritize anomaly result if it detected something
+  if (anomalyResult && anomalyResult.risk_level === 'HIGH_ANOMALY') {
+    status = ' Structural Anomaly';
+    icon = '';
     iconClass = 'suspicious';
+    confidence = anomalyResult.risk_score / 100;
+    reason = anomalyResult.reasons?.join('; ') || 'Structurally abnormal URL';
+  } else if (anomalyResult && anomalyResult.risk_level === 'SUSPICIOUS') {
+    status = ' Unusual Pattern';
+    icon = '';
+    iconClass = 'suspicious';
+    confidence = anomalyResult.risk_score / 100;
+    reason = anomalyResult.reasons?.join('; ') || 'Some unusual patterns detected';
+  } else if (result && result.status === 'MALICIOUS') {
+    status = ' Malicious Website';
+    icon = '';
+    iconClass = 'malicious';
+    confidence = result.confidence;
+    reason = result.reason;
+  } else if (result && result.status === 'SUSPICIOUS') {
+    status = ' Suspicious Website';
+    icon = '';
+    iconClass = 'suspicious';
+    confidence = result.confidence;
+    reason = result.reason;
   } else {
-    status = '✅ Safe Website';
-    icon = '✓';
+    status = ' Safe Website';
+    icon = '';
     iconClass = 'safe';
+    confidence = result ? result.confidence : (anomalyResult ? (1 - anomalyResult.risk_score / 100) : 0.5);
+    reason = result ? result.reason : 'No anomalies detected';
   }
-  
-  // Update UI
+
+  // Append anomaly info if available
+  if (anomalyResult && anomalyResult.risk_level !== 'HIGH_ANOMALY') {
+    reason += ` | Anomaly risk: ${anomalyResult.risk_score}/100`;
+  }
+
   resultIcon.textContent = icon;
   resultIcon.className = `result-icon ${iconClass}`;
   resultStatus.textContent = status;
   resultUrl.textContent = url;
-  
-  const confidence = Math.round(result.confidence * 100);
-  confidenceBar.style.width = confidence + '%';
-  confidenceText.textContent = confidence + '%';
-  
-  // Color confidence bar based on status
-  if (result.status === 'MALICIOUS') {
+
+  const confPct = Math.round(confidence * 100);
+  confidenceBar.style.width = confPct + '%';
+  confidenceText.textContent = confPct + '%';
+
+  if (iconClass === 'malicious') {
     confidenceBar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
-  } else if (result.status === 'SUSPICIOUS') {
+  } else if (iconClass === 'suspicious') {
     confidenceBar.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)';
   } else {
     confidenceBar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
   }
-  
-  resultReason.textContent = result.reason || 'No details available';
+
+  resultReason.textContent = reason || 'No details available';
   processingTimeEl.textContent = `${processingTime}ms`;
-  
+
   resultDiv.classList.remove('hidden');
 }
 
-// Add to recent activity
-function addToActivity(url, status) {
+// Render recent activity from background data
+function renderActivity(activities) {
   const timeline = document.getElementById('activityTimeline');
-  
+  if (!timeline) return;
+
+  // Clear existing content
+  timeline.innerHTML = '';
+
+  if (!activities || activities.length === 0) {
+    timeline.innerHTML = '<div class="timeline-empty">No activity yet — browse some sites!</div>';
+    return;
+  }
+
+  // Show last 10 items
+  const items = activities.slice(0, 10);
+
+  for (const activity of items) {
+    const item = document.createElement('div');
+    const statusClass = activity.status === 'BLOCKED' ? 'malicious'
+      : activity.status === 'ANOMALY' ? 'anomaly'
+        : activity.status === 'SUSPICIOUS' ? 'suspicious'
+          : 'legitimate';
+    item.className = `timeline-item ${statusClass}`;
+
+    let icon;
+    if (activity.status === 'BLOCKED') icon = '';
+    else if (activity.status === 'ANOMALY') icon = '';
+    else if (activity.status === 'SUSPICIOUS') icon = '';
+    else icon = '';
+
+    // Truncate URL for display
+    let displayUrl = activity.url;
+    try {
+      const urlObj = new URL(activity.url);
+      displayUrl = urlObj.hostname + (urlObj.pathname !== '/' ? urlObj.pathname : '');
+      if (displayUrl.length > 40) displayUrl = displayUrl.substring(0, 37) + '...';
+    } catch (e) {
+      if (displayUrl.length > 40) displayUrl = displayUrl.substring(0, 37) + '...';
+    }
+
+    item.innerHTML = `
+      <div class="timeline-icon">${icon}</div>
+      <div class="timeline-content">
+        <div class="timeline-url" title="${activity.url}">${displayUrl}</div>
+        <div class="timeline-time">${activity.time}</div>
+      </div>
+    `;
+
+    timeline.appendChild(item);
+  }
+}
+
+// Add to recent activity (for popup scans)
+function addToActivity(url, status) {
+  // When scanning from popup, also render immediately
+  const timeline = document.getElementById('activityTimeline');
+
   // Remove empty state
   const empty = timeline.querySelector('.timeline-empty');
   if (empty) {
     empty.remove();
   }
-  
+
   // Create activity item
   const item = document.createElement('div');
-  item.className = `timeline-item ${status.toLowerCase()}`;
-  
+  const statusClass = status === 'MALICIOUS' ? 'malicious'
+    : status === 'ANOMALY' ? 'anomaly'
+      : status === 'SUSPICIOUS' ? 'suspicious'
+        : 'legitimate';
+  item.className = `timeline-item ${statusClass}`;
+
   let icon;
-  if (status === 'MALICIOUS') icon = '🚫';
-  else if (status === 'SUSPICIOUS') icon = '⚠️';
-  else icon = '✓';
-  
+  if (status === 'MALICIOUS') icon = '';
+  else if (status === 'ANOMALY') icon = '';
+  else if (status === 'SUSPICIOUS') icon = '';
+  else icon = '';
+
   const time = new Date().toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit'
   });
-  
+
   item.innerHTML = `
     <div class="timeline-icon">${icon}</div>
     <div class="timeline-content">
@@ -204,28 +310,30 @@ function addToActivity(url, status) {
       <div class="timeline-time">${time}</div>
     </div>
   `;
-  
+
   // Add to top
   timeline.insertBefore(item, timeline.firstChild);
-  
-  // Keep only last 5
+
+  // Keep only last 10
   const items = timeline.querySelectorAll('.timeline-item');
-  if (items.length > 5) {
+  if (items.length > 10) {
     items[items.length - 1].remove();
   }
 }
 
 // Update UI with stats
 function updateUI() {
-  document.getElementById('blockedCount').textContent = stats.blocked;
-  document.getElementById('safeCount').textContent = stats.legitimate;
-  document.getElementById('warningCount').textContent = stats.warnings;
-  document.getElementById('totalCount').textContent = stats.totalChecked;
-  
-  document.getElementById('legendBlocked').textContent = `Blocked: ${stats.blocked}`;
-  document.getElementById('legendSafe').textContent = `Safe: ${stats.legitimate}`;
-  document.getElementById('legendWarning').textContent = `Warnings: ${stats.warnings}`;
-  
+  document.getElementById('blockedCount').textContent = stats.blocked || 0;
+  document.getElementById('safeCount').textContent = stats.legitimate || 0;
+  document.getElementById('warningCount').textContent = stats.warnings || 0;
+  document.getElementById('totalCount').textContent = stats.totalChecked || 0;
+  document.getElementById('anomalyCount').textContent = stats.anomaliesDetected || 0;
+  document.getElementById('homographCount').textContent = stats.homographsDetected || 0;
+
+  document.getElementById('legendBlocked').textContent = `Blocked: ${stats.blocked || 0}`;
+  document.getElementById('legendSafe').textContent = `Safe: ${stats.legitimate || 0}`;
+  document.getElementById('legendWarning').textContent = `Warnings: ${stats.warnings || 0}`;
+
   drawChart();
 }
 
@@ -233,48 +341,48 @@ function updateUI() {
 function drawChart() {
   const svg = document.getElementById('chartSvg');
   const chartTotal = document.getElementById('chartTotal');
-  
+
   const total = stats.totalChecked || 1; // Avoid division by zero
   chartTotal.textContent = stats.totalChecked;
-  
+
   const blocked = stats.blocked;
   const warnings = stats.warnings;
   const safe = stats.legitimate;
-  
+
   // Calculate percentages
   const blockedPct = (blocked / total) * 100;
   const warningsPct = (warnings / total) * 100;
   const safePct = (safe / total) * 100;
-  
+
   // Draw donut chart
   const radius = 90;
   const strokeWidth = 20;
   const circumference = 2 * Math.PI * radius;
-  
+
   // Calculate stroke dasharray for each segment
   const blockedDash = (blockedPct / 100) * circumference;
   const warningsDash = (warningsPct / 100) * circumference;
   const safeDash = (safePct / 100) * circumference;
-  
+
   // Clear existing paths
   svg.innerHTML = '';
-  
+
   let currentOffset = 0;
-  
+
   // Blocked segment
   if (blocked > 0) {
     const path = createCircleSegment(blockedDash, currentOffset, '#ef4444');
     svg.appendChild(path);
     currentOffset += blockedDash;
   }
-  
+
   // Warnings segment
   if (warnings > 0) {
     const path = createCircleSegment(warningsDash, currentOffset, '#f59e0b');
     svg.appendChild(path);
     currentOffset += warningsDash;
   }
-  
+
   // Safe segment
   if (safe > 0) {
     const path = createCircleSegment(safeDash, currentOffset, '#10b981');
@@ -287,7 +395,7 @@ function createCircleSegment(dashLength, offset, color) {
   const radius = 90;
   const strokeWidth = 20;
   const circumference = 2 * Math.PI * radius;
-  
+
   circle.setAttribute('cx', '100');
   circle.setAttribute('cy', '100');
   circle.setAttribute('r', radius);
@@ -297,15 +405,16 @@ function createCircleSegment(dashLength, offset, color) {
   circle.setAttribute('stroke-dasharray', `${dashLength} ${circumference}`);
   circle.setAttribute('stroke-dashoffset', -offset);
   circle.setAttribute('transform', 'rotate(-90 100 100)');
-  
+
   return circle;
 }
 
 // Clear cache
 async function clearCache() {
   try {
-    await chrome.runtime.sendMessage({ action: 'clearCache' });
-    showNotification('Cache cleared successfully', 'success');
+    const response = await chrome.runtime.sendMessage({ action: 'clearCache' });
+    const count = response?.cleared || 0;
+    showNotification(`Cache cleared (${count} entries removed)`, 'success');
   } catch (error) {
     showNotification('Failed to clear cache', 'error');
   }
@@ -329,9 +438,9 @@ function showNotification(message, type) {
     animation: slideIn 0.3s ease-out;
   `;
   toast.textContent = message;
-  
+
   document.body.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.style.animation = 'slideOut 0.3s ease-out';
     setTimeout(() => toast.remove(), 300);

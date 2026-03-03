@@ -10,7 +10,7 @@ from io import BytesIO
 
 def download_legitimate():
     print("=" * 60)
-    print("📥 DOWNLOADING TRANCO TOP WEBSITES")
+    print(" DOWNLOADING TRANCO TOP WEBSITES")
     print("=" * 60)
     
     os.makedirs('../raw', exist_ok=True)
@@ -18,22 +18,22 @@ def download_legitimate():
     # Tranco list (replacement for Alexa Top 1M)
     url = "https://tranco-list.eu/top-1m.csv.zip"
     
-    print(f"\n🌐 Fetching from: {url}")
+    print(f"\n Fetching from: {url}")
     print("⏳ This may take a minute...\n")
     
     try:
         response = requests.get(url, timeout=120)
         response.raise_for_status()
         
-        print("✅ Downloaded zip file")
-        print("📦 Extracting...")
+        print(" Downloaded zip file")
+        print(" Extracting...")
         
         # Extract ZIP file
         with zipfile.ZipFile(BytesIO(response.content)) as zip_ref:
             # Extract to raw directory
             zip_ref.extractall('../raw/')
             
-        print("✅ Extracted successfully")
+        print(" Extracted successfully")
         
         # Read the CSV and convert to our format
         input_path = '../raw/top-1m.csv'
@@ -58,25 +58,25 @@ def download_legitimate():
                         if count >= 100000:
                             break
         
-        print(f"💾 Saved to: {output_path}")
-        print(f"📊 Total legitimate URLs: {count}")
+        print(f" Saved to: {output_path}")
+        print(f" Total legitimate URLs: {count}")
         
         # Clean up
         if os.path.exists(input_path):
             os.remove(input_path)
-            print("🗑️  Cleaned up temporary files")
+            print("  Cleaned up temporary files")
         
         return count
         
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error downloading Tranco data: {e}")
+        print(f" Error downloading Tranco data: {e}")
         return 0
     except Exception as e:
-        print(f"❌ Error processing data: {e}")
+        print(f" Error processing data: {e}")
         return 0
 
 if __name__ == '__main__':
     count = download_legitimate()
     print("\n" + "=" * 60)
-    print(f"✅ TRANCO DOWNLOAD COMPLETE: {count} URLs")
+    print(f" TRANCO DOWNLOAD COMPLETE: {count} URLs")
     print("=" * 60)

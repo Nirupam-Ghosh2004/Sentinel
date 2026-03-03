@@ -14,7 +14,7 @@ import os
 def load_and_balance_data():
     """Load and balance dataset"""
     print("=" * 70)
-    print("📊 LOADING AND BALANCING DATA")
+    print(" LOADING AND BALANCING DATA")
     print("=" * 70)
     
     # Load all splits
@@ -25,7 +25,7 @@ def load_and_balance_data():
     # Combine for reprocessing
     all_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
     
-    print(f"✅ Total URLs loaded: {len(all_df)}")
+    print(f" Total URLs loaded: {len(all_df)}")
     print(f"   Malicious: {len(all_df[all_df['label'] == 'malicious'])}")
     print(f"   Legitimate: {len(all_df[all_df['label'] == 'legitimate'])}")
     
@@ -33,19 +33,19 @@ def load_and_balance_data():
 
 def extract_improved_features(df, extractor):
     """Extract features using improved extractor"""
-    print("\n🔧 Extracting improved features...")
+    print("\n Extracting improved features...")
     
     features_df = extractor.extract_features_batch(df['url'].tolist())
     features_df['label'] = (df['label'] == 'malicious').astype(int)
     
-    print(f"✅ Extracted {len(features_df.columns) - 1} features")
+    print(f" Extracted {len(features_df.columns) - 1} features")
     print(f"   Feature count increased from 38 to {len(features_df.columns) - 1}")
     
     return features_df
 
 def train_improved_model(X_train, y_train, X_val, y_val):
     """Train XGBoost with improved parameters"""
-    print("\n🤖 Training improved XGBoost model...")
+    print("\n Training improved XGBoost model...")
     
     # Improved parameters (FIXED: removed early_stopping_rounds from params)
     params = {
@@ -72,13 +72,13 @@ def train_improved_model(X_train, y_train, X_val, y_val):
         verbose=False
     )
     
-    print(f"✅ Training complete!")
+    print(f" Training complete!")
     
     return model
 
 def cross_validate_model(X, y, feature_names):
     """Perform cross-validation to check generalization"""
-    print("\n🔄 Performing 5-fold cross-validation...")
+    print("\n Performing 5-fold cross-validation...")
     
     params = {
         'max_depth': 7,
@@ -96,7 +96,7 @@ def cross_validate_model(X, y, feature_names):
     # Cross-validation scores
     cv_scores = cross_val_score(model, X, y, cv=skf, scoring='accuracy', n_jobs=-1)
     
-    print(f"\n📊 Cross-Validation Results:")
+    print(f"\n Cross-Validation Results:")
     print(f"   Accuracy scores: {[f'{s:.4f}' for s in cv_scores]}")
     print(f"   Mean accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
     
@@ -104,7 +104,7 @@ def cross_validate_model(X, y, feature_names):
 
 def evaluate_model(model, X, y, dataset_name="Test"):
     """Evaluate model with detailed metrics"""
-    print(f"\n📊 Evaluating on {dataset_name} set...")
+    print(f"\n Evaluating on {dataset_name} set...")
     
     y_pred = model.predict(X)
     y_pred_proba = model.predict_proba(X)[:, 1]
@@ -161,13 +161,13 @@ def save_improved_model(model, feature_names, output_dir='../trained_models'):
     joblib.dump(model, model_path)
     joblib.dump(feature_names, features_path)
     
-    print(f"\n💾 Improved model saved:")
+    print(f"\n Improved model saved:")
     print(f"   {model_path}")
     print(f"   {features_path}")
 
 def plot_feature_importance(model, feature_names, top_n=20):
     """Plot feature importance"""
-    print(f"\n📊 Plotting top {top_n} important features...")
+    print(f"\n Plotting top {top_n} important features...")
     
     importance = model.feature_importances_
     indices = np.argsort(importance)[::-1][:top_n]
@@ -182,7 +182,7 @@ def plot_feature_importance(model, feature_names, top_n=20):
     
     os.makedirs('../evaluation', exist_ok=True)
     plt.savefig('../evaluation/feature_importance_v2.png', dpi=300, bbox_inches='tight')
-    print("💾 Saved to: ../evaluation/feature_importance_v2.png")
+    print(" Saved to: ../evaluation/feature_importance_v2.png")
     
     print(f"\nTop 10 Features:")
     for i in range(min(10, top_n)):
@@ -191,7 +191,7 @@ def plot_feature_importance(model, feature_names, top_n=20):
 
 def main():
     print("=" * 70)
-    print("🎓 IMPROVED MALICIOUS URL DETECTION - MODEL TRAINING V2")
+    print(" IMPROVED MALICIOUS URL DETECTION - MODEL TRAINING V2")
     print("=" * 70)
     
     # Load data
@@ -263,13 +263,13 @@ def main():
     joblib.dump(metrics_summary, '../evaluation/model_metrics_v2.pkl')
     
     print("\n" + "=" * 70)
-    print("✅ IMPROVED TRAINING COMPLETE!")
+    print(" IMPROVED TRAINING COMPLETE!")
     print("=" * 70)
     print("\nFiles created:")
-    print("  📁 ../trained_models/xgboost_model_v2.pkl")
-    print("  📁 ../trained_models/feature_names_v2.pkl")
-    print("  📁 ../evaluation/feature_importance_v2.png")
-    print("  📁 ../evaluation/model_metrics_v2.pkl")
+    print("   ../trained_models/xgboost_model_v2.pkl")
+    print("   ../trained_models/feature_names_v2.pkl")
+    print("   ../evaluation/feature_importance_v2.png")
+    print("   ../evaluation/model_metrics_v2.pkl")
 
 if __name__ == '__main__':
     main()

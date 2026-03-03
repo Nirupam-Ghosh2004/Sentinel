@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Malicious URL Detector",
-  "version": "1.0.0",
-  "description": "Real-time detection of spam, phishing, and malicious websites",
+  "name": "Sentinel — Zero-Day URL Anomaly Detector",
+  "version": "3.0.0",
+  "description": "Privacy-first zero-day anomaly detection + ML-based malicious URL protection",
   "permissions": [
     "webRequest",
     "storage",
@@ -38,7 +38,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["warning.html", "warning.js"],
+      "resources": ["warning.html", "warning.js", "background/anomaly_engine.js", "background/homograph_checker.js"],
       "matches": ["<all_urls>"]
     }
   ]

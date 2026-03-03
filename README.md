@@ -14,26 +14,26 @@
 ## 🎯 **Features**
 
 ### **Browser Extension**
-- ✅ Real-time URL scanning before page loads
-- ✅ Local heuristic-based detection (instant)
-- ✅ ML-powered backend integration
-- ✅ User-friendly warning pages
-- ✅ Statistics dashboard
-- ✅ Intelligent caching (1-hour TTL)
+-  Real-time URL scanning before page loads
+-  Local heuristic-based detection (instant)
+-  ML-powered backend integration
+-  User-friendly warning pages
+-  Statistics dashboard
+-  Intelligent caching (1-hour TTL)
 
 ### **Backend API**
-- ✅ FastAPI REST endpoints
-- ✅ XGBoost ML model (99.89% accuracy)
-- ✅ 50+ URL features extraction
-- ✅ Domain reputation scoring
-- ✅ Multi-layer threat detection
+-  FastAPI REST endpoints
+-  XGBoost ML model (99.89% accuracy)
+-  50+ URL features extraction
+-  Domain reputation scoring
+-  Multi-layer threat detection
 
 ### **Machine Learning**
-- ✅ **137,268 URLs** in training dataset
-- ✅ **50 features** per URL
-- ✅ **XGBoost classifier** (99.89% test accuracy)
-- ✅ **0.02% false positive rate**
-- ✅ Cross-validation: 99.87% (±0.06%)
+-  **137,268 URLs** in training dataset
+-  **50 features** per URL
+-  **XGBoost classifier** (99.89% test accuracy)
+-  **0.02% false positive rate**
+-  Cross-validation: 99.87% (±0.06%)
 
 ---
 
@@ -231,16 +231,6 @@ cp ml-models/trained_models/xgboost_model_v2.pkl backend/app/ml_models/xgboost_m
 
 ---
 
-## 📈 **Roadmap**
-
-- [ ] Firefox extension support
-- [ ] Threat intelligence API integration (VirusTotal, Google Safe Browsing)
-- [ ] User feedback system
-- [ ] Dynamic model retraining pipeline
-- [ ] Chrome Web Store publication
-- [ ] Docker deployment
-- [ ] Database logging (PostgreSQL)
-- [ ] Dashboard UI for analytics
 
 ---
 

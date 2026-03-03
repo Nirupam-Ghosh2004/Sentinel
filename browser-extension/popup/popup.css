@@ -407,6 +407,28 @@ input[type="text"]::placeholder {
   color: var(--accent-purple);
 }
 
+.stat-card.anomaly .stat-icon {
+  background: rgba(219, 39, 119, 0.2);
+  color: #f472b6;
+}
+
+.stat-card.homograph .stat-icon {
+  background: rgba(20, 184, 166, 0.2);
+  color: #2dd4bf;
+}
+
+/* Anomaly Stats Grid */
+.anomaly-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.timeline-item.anomaly {
+  border-left-color: #f472b6;
+}
+
 .stat-content {
   flex: 1;
 }

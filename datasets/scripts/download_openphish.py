@@ -9,14 +9,14 @@ from datetime import datetime
 
 def download_openphish():
     print("=" * 60)
-    print("📥 DOWNLOADING OPENPHISH FEED")
+    print(" DOWNLOADING OPENPHISH FEED")
     print("=" * 60)
     
     os.makedirs('../raw', exist_ok=True)
     
     url = "https://openphish.com/feed.txt"
     
-    print(f"\n🌐 Fetching from: {url}")
+    print(f"\n Fetching from: {url}")
     print("⏳ Downloading...\n")
     
     try:
@@ -26,14 +26,14 @@ def download_openphish():
         urls = response.text.strip().split('\n')
         urls = [u.strip() for u in urls if u.strip()]
         
-        print(f"✅ Downloaded {len(urls)} phishing URLs")
+        print(f" Downloaded {len(urls)} phishing URLs")
         
         # Save as text file
         txt_path = '../raw/openphish.txt'
         with open(txt_path, 'w', encoding='utf-8') as f:
             f.write(response.text)
         
-        print(f"💾 Saved to: {txt_path}")
+        print(f" Saved to: {txt_path}")
         
         # Also save as CSV for consistency
         csv_path = '../raw/openphish.csv'
@@ -49,20 +49,20 @@ def download_openphish():
                     datetime.now().strftime('%Y-%m-%d')
                 ])
         
-        print(f"💾 CSV saved to: {csv_path}")
-        print(f"📊 Total phishing URLs: {len(urls)}")
+        print(f" CSV saved to: {csv_path}")
+        print(f" Total phishing URLs: {len(urls)}")
         
         return len(urls)
         
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error downloading OpenPhish data: {e}")
+        print(f" Error downloading OpenPhish data: {e}")
         return 0
     except Exception as e:
-        print(f"❌ Error processing data: {e}")
+        print(f" Error processing data: {e}")
         return 0
 
 if __name__ == '__main__':
     count = download_openphish()
     print("\n" + "=" * 60)
-    print(f"✅ OPENPHISH DOWNLOAD COMPLETE: {count} URLs")
+    print(f" OPENPHISH DOWNLOAD COMPLETE: {count} URLs")
     print("=" * 60)

@@ -29,7 +29,7 @@
           rgba(12, 15, 20, 0.95));
       border-radius: 22px;
       padding: 42px;
-      max-width: 620px;
+      max-width: 660px;
       width: 100%;
       text-align: center;
       box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
@@ -40,24 +40,119 @@
     .icon {
       font-size: 72px;
       margin-bottom: 18px;
+    }
+
+    .icon-block {
       filter: drop-shadow(0 0 12px rgba(255, 70, 70, 0.6));
+    }
+
+    .icon-anomaly {
+      filter: drop-shadow(0 0 12px rgba(255, 165, 0, 0.6));
     }
 
     /* TITLE */
     h1 {
-      color: #ff4d4d;
       margin-bottom: 18px;
-      font-size: 30px;
+      font-size: 28px;
       font-weight: 700;
       letter-spacing: 0.4px;
+    }
+
+    h1.block-title { color: #ff4d4d; }
+    h1.anomaly-title { color: #ffb020; }
+
+    /* DETECTION SOURCE BADGE */
+    .source-badge {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .badge-anomaly {
+      background: rgba(255, 165, 0, 0.15);
+      color: #ffb020;
+      border: 1px solid rgba(255, 165, 0, 0.3);
+    }
+
+    .badge-ml {
+      background: rgba(255, 77, 77, 0.15);
+      color: #ff6b6b;
+      border: 1px solid rgba(255, 77, 77, 0.3);
+    }
+
+    .badge-heuristic {
+      background: rgba(255, 77, 77, 0.15);
+      color: #ff6b6b;
+      border: 1px solid rgba(255, 77, 77, 0.3);
     }
 
     /* MESSAGE */
     .message {
       color: #b6bcc7;
-      font-size: 16px;
+      font-size: 15px;
       margin-bottom: 24px;
       line-height: 1.6;
+    }
+
+    /* RISK GAUGE */
+    .risk-gauge {
+      margin: 24px auto;
+      max-width: 280px;
+    }
+
+    .risk-gauge-bar {
+      width: 100%;
+      height: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 7px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .risk-gauge-fill {
+      height: 100%;
+      border-radius: 7px;
+      transition: width 1s ease-out;
+    }
+
+    .risk-gauge-fill.risk-low {
+      background: linear-gradient(90deg, #3cff9a, #6bff6b);
+    }
+
+    .risk-gauge-fill.risk-medium {
+      background: linear-gradient(90deg, #ffcc00, #ffb020);
+    }
+
+    .risk-gauge-fill.risk-high {
+      background: linear-gradient(90deg, #ff6b6b, #ff4d4d);
+    }
+
+    .risk-label {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #888;
+    }
+
+    .risk-score-text {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .risk-score-text.risk-low { color: #3cff9a; }
+    .risk-score-text.risk-medium { color: #ffb020; }
+    .risk-score-text.risk-high { color: #ff4d4d; }
+
+    .risk-out-of {
+      font-size: 14px;
+      color: #888;
     }
 
     /* URL BOX */
@@ -69,13 +164,53 @@
       margin: 20px 0;
       font-family: "JetBrains Mono", monospace;
       color: #ffffff;
-      font-size: 14px;
-      max-height: 110px;
+      font-size: 13px;
+      max-height: 90px;
       overflow-y: auto;
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* REASON BOX */
+    /* REASONS LIST */
+    .reasons-list {
+      text-align: left;
+      margin: 20px 0;
+      padding: 18px;
+      background: rgba(255, 176, 32, 0.07);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 176, 32, 0.15);
+    }
+
+    .reasons-list h3 {
+      font-size: 14px;
+      color: #ffcc66;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .reasons-list ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .reasons-list li {
+      padding: 6px 0;
+      font-size: 13px;
+      color: #ffe6b3;
+      line-height: 1.5;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .reasons-list li:last-child {
+      border-bottom: none;
+    }
+
+    .reasons-list li::before {
+      content: '⚠';
+      margin-right: 8px;
+      font-size: 12px;
+    }
+
+    /* SINGLE REASON (fallback) */
     .reason {
       background: rgba(255, 176, 32, 0.08);
       border-left: 4px solid #ffb020;
@@ -94,17 +229,17 @@
     .buttons {
       margin-top: 28px;
       display: flex;
-      gap: 16px;
+      gap: 14px;
       justify-content: center;
       flex-wrap: wrap;
     }
 
     /* BUTTON BASE */
     button {
-      padding: 13px 32px;
+      padding: 13px 28px;
       border: none;
       border-radius: 12px;
-      font-size: 15px;
+      font-size: 14px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.25s ease;
@@ -132,23 +267,47 @@
       transform: translateY(-2px);
     }
 
+    /* PROCEED (anomaly override) */
+    .btn-proceed {
+      background: rgba(255, 255, 255, 0.08);
+      color: #aaa;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-proceed:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+
     /* INFO TIP */
     .info {
       margin-top: 26px;
       padding: 15px;
       background: rgba(60, 255, 154, 0.08);
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 13px;
       color: #9dffd1;
       border: 1px solid rgba(60, 255, 154, 0.25);
     }
 
-    /* ===============================
-   AUTO THEME SWITCH
-================================ */
+    .info.info-anomaly {
+      background: rgba(100, 180, 255, 0.08);
+      color: #a0d4ff;
+      border-color: rgba(100, 180, 255, 0.25);
+    }
 
+    /* Hide elements based on mode */
+    .block-only { display: none; }
+    .anomaly-only { display: none; }
+
+    body.mode-block .block-only { display: block; }
+    body.mode-block .anomaly-only { display: none; }
+    body.mode-anomaly .anomaly-only { display: block; }
+    body.mode-anomaly .block-only { display: none; }
+
+    /* ===== AUTO THEME SWITCH ===== */
     @media (prefers-color-scheme: light) {
-
       body {
         background: linear-gradient(135deg, #f4f6fb, #e9ecf3);
         color: #222;
@@ -160,13 +319,10 @@
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
       }
 
-      h1 {
-        color: #e53935;
-      }
+      h1.block-title { color: #e53935; }
+      h1.anomaly-title { color: #e67e00; }
 
-      .message {
-        color: #555;
-      }
+      .message { color: #555; }
 
       .url {
         background: #f6f7f9;
@@ -174,65 +330,119 @@
         border: 1px solid #ddd;
       }
 
+      .reasons-list {
+        background: #fff8e1;
+        border-color: #ffb300;
+      }
+
+      .reasons-list h3 { color: #7a5a00; }
+      .reasons-list li { color: #6b4f00; }
+
       .reason {
         background: #fff8e1;
         color: #7a5a00;
         border-left: 4px solid #ffb300;
       }
 
-      .info {
-        background: #e8f5e9;
-        color: #1b5e20;
-      }
+      .info { background: #e8f5e9; color: #1b5e20; }
+      .info.info-anomaly { background: #e3f2fd; color: #0d47a1; }
     }
 
-    /* ===============================
-   SHIELD PULSE ANIMATION
-================================ */
-
+    /* ===== SHIELD PULSE ANIMATION ===== */
     @keyframes shieldPulse {
       0% {
         transform: scale(1);
         filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.4));
       }
-
       50% {
         transform: scale(1.08);
         filter: drop-shadow(0 0 18px rgba(255, 77, 77, 0.9));
       }
-
       100% {
         transform: scale(1);
         filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.4));
       }
     }
 
-    .icon {
-      animation: shieldPulse 2.2s ease-in-out infinite;
+    @keyframes anomalyPulse {
+      0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 6px rgba(255, 165, 0, 0.4));
+      }
+      50% {
+        transform: scale(1.08);
+        filter: drop-shadow(0 0 18px rgba(255, 165, 0, 0.9));
+      }
+      100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 6px rgba(255, 165, 0, 0.4));
+      }
     }
+
+    .icon-block { animation: shieldPulse 2.2s ease-in-out infinite; }
+    .icon-anomaly { animation: anomalyPulse 2.2s ease-in-out infinite; }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <div class="icon">🛡️</div>
-    <h1>Malicious Website Blocked</h1>
-    <p class="message">This website has been identified as potentially dangerous and was blocked for your safety.</p>
+    <!-- Icon (set dynamically) -->
+    <div class="icon" id="warningIcon">🛡️</div>
 
+    <!-- Source Badge -->
+    <div class="source-badge" id="sourceBadge">DETECTION</div>
+
+    <!-- Title -->
+    <h1 id="warningTitle">Website Blocked</h1>
+
+    <!-- Message -->
+    <p class="message" id="warningMessage">
+      This website has been identified as potentially dangerous and was blocked for your safety.
+    </p>
+
+    <!-- Risk Gauge (anomaly only) -->
+    <div class="risk-gauge anomaly-only" id="riskGaugeSection">
+      <div class="risk-score-text" id="riskScoreText">0</div>
+      <div class="risk-out-of">/100 Risk Score</div>
+      <div class="risk-gauge-bar">
+        <div class="risk-gauge-fill" id="riskGaugeFill" style="width: 0%"></div>
+      </div>
+      <div class="risk-label">
+        <span>Normal</span>
+        <span>Suspicious</span>
+        <span>High Risk</span>
+      </div>
+    </div>
+
+    <!-- URL -->
     <div class="url" id="blockedUrl">Loading URL...</div>
 
-    <div class="reason">
+    <!-- Reasons list (anomaly mode) -->
+    <div class="reasons-list anomaly-only" id="reasonsList">
+      <h3>🔍 Why this was flagged:</h3>
+      <ul id="reasonsUl"></ul>
+    </div>
+
+    <!-- Single reason (block mode) -->
+    <div class="reason block-only" id="singleReason">
       <strong>🔍 Detection Reason:</strong><br>
       <span id="blockReason">Analyzing...</span>
     </div>
 
+    <!-- Buttons -->
     <div class="buttons">
       <button class="btn-close" id="closeBtn">✖️ Close Tab</button>
       <button class="btn-home" id="homeBtn">🏠 Go to Google</button>
+      <button class="btn-proceed anomaly-only" id="proceedBtn">⚠️ Proceed Anyway</button>
     </div>
 
-    <div class="info">
+    <!-- Info -->
+    <div class="info block-only">
       💡 <strong>Tip:</strong> Avoid visiting websites with suspicious URLs, IP addresses, or unusual domain extensions.
+    </div>
+
+    <div class="info info-anomaly anomaly-only">
+      🧬 <strong>Zero-Day Detection:</strong> This URL's structure is statistically abnormal compared to your normal browsing patterns. It may be safe, but exercise caution. You can proceed if you trust this site.
     </div>
   </div>
 

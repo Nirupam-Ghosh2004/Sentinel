@@ -14,29 +14,29 @@ import os
 
 def load_data(filepath):
     """Load dataset"""
-    print(f"📖 Loading data from {filepath}...")
+    print(f" Loading data from {filepath}...")
     df = pd.read_csv(filepath)
-    print(f"✅ Loaded {len(df)} URLs")
+    print(f" Loaded {len(df)} URLs")
     print(f"   - Malicious: {len(df[df['label'] == 'malicious'])}")
     print(f"   - Legitimate: {len(df[df['label'] == 'legitimate'])}")
     return df
 
 def extract_features_from_dataset(df, extractor):
     """Extract features from all URLs in dataset"""
-    print("\n🔧 Extracting features from URLs...")
+    print("\n Extracting features from URLs...")
     
     features_df = extractor.extract_features_batch(df['url'].tolist())
     
     # Add label (convert to binary: 1 = malicious, 0 = legitimate)
     features_df['label'] = (df['label'] == 'malicious').astype(int)
     
-    print(f"✅ Extracted {len(features_df.columns) - 1} features")
+    print(f" Extracted {len(features_df.columns) - 1} features")
     
     return features_df
 
 def train_model(X_train, y_train, X_val, y_val):
     """Train XGBoost model"""
-    print("\n🤖 Training XGBoost model...")
+    print("\n Training XGBoost model...")
     
     # XGBoost parameters
     params = {
@@ -59,13 +59,13 @@ def train_model(X_train, y_train, X_val, y_val):
         verbose=False
     )
     
-    print("✅ Training complete!")
+    print(" Training complete!")
     
     return model
 
 def evaluate_model(model, X, y, dataset_name="Test"):
     """Evaluate model performance"""
-    print(f"\n📊 Evaluating on {dataset_name} set...")
+    print(f"\n Evaluating on {dataset_name} set...")
     
     # Predictions
     y_pred = model.predict(X)
@@ -116,12 +116,12 @@ def save_model(model, feature_names, output_dir='../trained_models'):
     joblib.dump(model, model_path)
     joblib.dump(feature_names, features_path)
     
-    print(f"\n💾 Model saved to: {model_path}")
-    print(f"💾 Feature names saved to: {features_path}")
+    print(f"\n Model saved to: {model_path}")
+    print(f" Feature names saved to: {features_path}")
 
 def plot_feature_importance(model, feature_names, top_n=20):
     """Plot feature importance"""
-    print(f"\n📊 Plotting top {top_n} important features...")
+    print(f"\n Plotting top {top_n} important features...")
     
     # Get feature importance
     importance = model.feature_importances_
@@ -137,7 +137,7 @@ def plot_feature_importance(model, feature_names, top_n=20):
     
     os.makedirs('../evaluation', exist_ok=True)
     plt.savefig('../evaluation/feature_importance.png', dpi=300, bbox_inches='tight')
-    print("💾 Saved to: ../evaluation/feature_importance.png")
+    print(" Saved to: ../evaluation/feature_importance.png")
     
     # Print top features
     print(f"\nTop {min(10, top_n)} Features:")
@@ -147,7 +147,7 @@ def plot_feature_importance(model, feature_names, top_n=20):
 
 def main():
     print("=" * 60)
-    print("🎓 MALICIOUS URL DETECTION - MODEL TRAINING")
+    print(" MALICIOUS URL DETECTION - MODEL TRAINING")
     print("=" * 60)
     
     # Load data
@@ -217,13 +217,13 @@ def main():
     joblib.dump(metrics_summary, '../evaluation/model_metrics.pkl')
     
     print("\n" + "=" * 60)
-    print("✅ TRAINING COMPLETE!")
+    print(" TRAINING COMPLETE!")
     print("=" * 60)
     print("\nFiles created:")
-    print("  📁 ../trained_models/xgboost_model.pkl")
-    print("  📁 ../trained_models/feature_names.pkl")
-    print("  📁 ../evaluation/feature_importance.png")
-    print("  📁 ../evaluation/model_metrics.pkl")
+    print("   ../trained_models/xgboost_model.pkl")
+    print("   ../trained_models/feature_names.pkl")
+    print("   ../evaluation/feature_importance.png")
+    print("   ../evaluation/model_metrics.pkl")
 
 if __name__ == '__main__':
     main()

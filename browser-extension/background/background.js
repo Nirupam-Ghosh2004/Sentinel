@@ -1,11 +1,16 @@
-// Malicious URL Detector - Background Script (Fixed)
+// Sentinel v3.0.0 - Background Script
+// Anomaly Detection + ML Classification
+// All processing is local
+
+// Load sub-modules (Manifest V3 service worker)
+importScripts('anomaly_engine.js', 'homograph_checker.js');
 
 // ==================== CACHE MANAGER ====================
 class CacheManager {
   constructor() {
     this.cacheDuration = 3600000; // 1 hour
   }
-  
+
   async get(url) {
     try {
       const result = await chrome.storage.local.get([url]);
@@ -22,7 +27,7 @@ class CacheManager {
       return null;
     }
   }
-  
+
   async set(url, data) {
     try {
       const cacheEntry = { data: data, timestamp: Date.now() };
@@ -31,7 +36,7 @@ class CacheManager {
       console.error('Cache set error:', error);
     }
   }
-  
+
   async remove(url) {
     try {
       await chrome.storage.local.remove([url]);
@@ -39,7 +44,7 @@ class CacheManager {
       console.error('Cache remove error:', error);
     }
   }
-  
+
   async clear() {
     try {
       await chrome.storage.local.clear();
@@ -57,14 +62,38 @@ const SAFE_DOMAINS = [
   'microsoft.com', 'apple.com', 'netflix.com', 'yahoo.com',
   'leetcode.com', 'hackerrank.com', 'codepen.io', 'replit.com',
   'twitch.tv', 'discord.com', 'slack.com', 'zoom.us',
-  'pinterest.com', 'tumblr.com', 'dropbox.com', 'notion.so'
+  'pinterest.com', 'tumblr.com', 'dropbox.com', 'notion.so',
+  // Office & productivity
+  'office365.com', 'office.com', 'outlook.com', 'live.com',
+  'microsoftonline.com', 'sharepoint.com', 'onedrive.com',
+  // Streaming & media
+  'primevideo.com', 'hotstar.com', 'spotify.com', 'soundcloud.com',
+  'hulu.com', 'disneyplus.com',
+  // Education & learning
+  'pwskills.com', 'udemy.com', 'coursera.org', 'edx.org',
+  'khanacademy.org', 'geeksforgeeks.org',
+  // Shopping
+  'flipkart.com', 'myntra.com', 'walmart.com', 'target.com',
+  // Social & messaging
+  'whatsapp.com', 'telegram.org', 'signal.org', 'snapchat.com',
+  // Dev tools
+  'gitlab.com', 'bitbucket.org', 'npmjs.com', 'pypi.org',
+  'docker.com', 'vercel.app', 'netlify.app', 'herokuapp.com',
+  // News & media
+  'bbc.com', 'cnn.com', 'nytimes.com', 'medium.com', 'substack.com',
+  // Cloud & infra
+  'aws.amazon.com', 'cloud.google.com', 'azure.microsoft.com',
+  // Other popular
+  'quora.com', 'bing.com', 'duckduckgo.com', 'archive.org',
 ];
 
 const LONG_URL_OK_DOMAINS = [
   'google.com', 'youtube.com', 'amazon.com', 'ebay.com',
   'github.com', 'stackoverflow.com', 'reddit.com',
   'leetcode.com', 'hackerrank.com', 'twitter.com',
-  'facebook.com', 'linkedin.com', 'pinterest.com'
+  'facebook.com', 'linkedin.com', 'pinterest.com',
+  'primevideo.com', 'flipkart.com', 'office365.com',
+  'outlook.com', 'sharepoint.com',
 ];
 
 // ==================== UTILITY FUNCTIONS ====================
@@ -79,14 +108,14 @@ function extractDomain(url) {
 
 function isWhitelistedDomain(url) {
   const hostname = extractDomain(url).toLowerCase();
-  return SAFE_DOMAINS.some(domain => 
+  return SAFE_DOMAINS.some(domain =>
     hostname === domain || hostname.endsWith('.' + domain)
   );
 }
 
 function allowsLongURLs(url) {
   const hostname = extractDomain(url).toLowerCase();
-  return LONG_URL_OK_DOMAINS.some(domain => 
+  return LONG_URL_OK_DOMAINS.some(domain =>
     hostname === domain || hostname.endsWith('.' + domain)
   );
 }
@@ -110,7 +139,7 @@ function extractFeatures(url) {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
     const path = urlObj.pathname;
-    
+
     return {
       urlLength: url.length,
       pathLength: path.length,
@@ -129,105 +158,106 @@ function extractFeatures(url) {
 }
 
 // ==================== HEURISTICS ====================
+// Only catch the ONE pattern the anomaly engine can't score well:
+// @ symbol redirect attacks (http://google.com@evil.com sends you to evil.com)
 function quickHeuristicCheck(url) {
-  const features = extractFeatures(url);
-  if (!features) {
-    return { shouldBlock: false };
-  }
-  
-  // Whitelist check (minimal - let ML handle most cases)
-  if (isWhitelistedDomain(url)) {
-    return { shouldBlock: false, reason: 'Whitelisted domain' };
-  }
-  
-  // Critical threats only
-  if (features.hasIPAddress) {
-    return { shouldBlock: true, reason: 'IP address URL', confidence: 0.85 };
-  }
-  if (features.suspiciousTLD) {
-    return { shouldBlock: true, reason: 'Suspicious TLD', confidence: 0.75 };
-  }
-  if (features.numAt > 0) {
-    return { shouldBlock: true, reason: 'Contains @ symbol', confidence: 0.90 };
-  }
-  
-  // Only block very long paths for non-whitelisted
-  if (features.pathLength > 100 && !allowsLongURLs(url)) {
-    return { shouldBlock: true, reason: 'Very long URL path', confidence: 0.60 };
-  }
-  
-  if (features.subdomainCount > 4) {
-    return { shouldBlock: true, reason: 'Too many subdomains', confidence: 0.70 };
-  }
-  
-  const hostname = extractDomain(url).toLowerCase();
-  if (hostname.includes('https')) {
-    return { shouldBlock: true, reason: 'HTTPS in domain name', confidence: 0.95 };
-  }
-  
+  try {
+    const features = extractFeatures(url);
+    if (!features) return { shouldBlock: false };
+
+    // @ symbol is an actual redirect attack, not just suspicious structure
+    if (features.numAt > 0) {
+      return { shouldBlock: true, reason: 'URL contains @ symbol — possible redirect attack', confidence: 0.95 };
+    }
+  } catch (e) { /* ignore */ }
+
   return { shouldBlock: false };
 }
 
-// ==================== BACKEND API (FIXED) ====================
+// ==================== BACKEND APIs ====================
 const BACKEND_API = 'http://localhost:8000/api';
 const cache = new CacheManager();
-let stats = { totalChecked: 0, blocked: 0, warnings: 0, legitimate: 0 };
+
+let stats = {
+  totalChecked: 0,
+  blocked: 0,
+  warnings: 0,
+  legitimate: 0,
+  // Anomaly-specific stats
+  anomaliesDetected: 0,
+  anomalySuspicious: 0,
+  homographsDetected: 0
+};
+
+// Recent activity log, shared with popup
+let recentActivity = [];
+const MAX_ACTIVITY = 20;
+
+function addActivity(url, status, reason) {
+  recentActivity.unshift({
+    url: url,
+    status: status,
+    reason: reason || '',
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    timestamp: Date.now()
+  });
+  if (recentActivity.length > MAX_ACTIVITY) {
+    recentActivity = recentActivity.slice(0, MAX_ACTIVITY);
+  }
+}
+
 const blockedTabs = new Set();
 
-async function checkWithBackendAPI(url) {
+// ML backend client
+async function checkWithBackendML(url) {
   try {
-    // Create manual timeout (instead of AbortSignal.timeout)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
+
     const response = await fetch(`${BACKEND_API}/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: url }),
       signal: controller.signal
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!response.ok) {
-      console.error(`API returned status: ${response.status}`);
+      console.error(`ML API returned status: ${response.status}`);
       return null;
     }
-    
+
     const data = await response.json();
-    console.log('✅ Backend API response:', data);
+    console.log('ML API response:', data);
     return data;
-    
+
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.error('⏱️ Backend API timeout (5 seconds)');
+      console.error('ML API timeout');
     } else {
-      console.error('❌ Backend API error:', error.message);
+      console.error('ML API error:', error.message);
     }
     return null;
   }
 }
 
+// ==================== MAIN DETECTION PIPELINE ====================
 async function checkAndBlockURL(details) {
   // Only check main page navigations
-  if (details.type !== 'main_frame') {
-    return;
-  }
+  if (details.type !== 'main_frame') return;
 
   // Skip internal pages
-  if (details.url.startsWith('chrome://') || 
-      details.url.startsWith('chrome-extension://') ||
-      details.url.startsWith('about:') ||
-      details.url.startsWith('edge://')) {
+  if (details.url.startsWith('chrome://') ||
+    details.url.startsWith('chrome-extension://') ||
+    details.url.startsWith('about:') ||
+    details.url.startsWith('edge://')) {
     return;
   }
 
   const url = details.url;
   const tabId = details.tabId;
-
-  if (tabId === -1) {
-    return;
-  }
+  if (tabId === -1) return;
 
   // Skip if we just blocked this tab
   if (blockedTabs.has(tabId)) {
@@ -235,14 +265,15 @@ async function checkAndBlockURL(details) {
     return;
   }
 
-  console.log('🔍 Checking URL:', url);
+  console.log('Checking URL:', url);
 
   try {
-    // Step 1: Whitelist check (minimal)
+    // Step 1: Whitelist check
     if (isWhitelistedDomain(url)) {
       stats.totalChecked++;
       stats.legitimate++;
-      console.log('✅ Whitelisted:', url);
+      console.log('[OK] Whitelisted:', url);
+      addActivity(url, 'SAFE', 'Whitelisted domain');
       return;
     }
 
@@ -250,23 +281,18 @@ async function checkAndBlockURL(details) {
     const cachedResult = await cache.get(url);
     if (cachedResult) {
       stats.totalChecked++;
-      
-      if (cachedResult.status === 'MALICIOUS') {
-        stats.blocked++;
-        console.log('🚫 Cache hit - BLOCKED:', url);
-        blockTab(tabId, url, cachedResult.reason);
-      } else if (cachedResult.status === 'SUSPICIOUS') {
-        stats.warnings++;
-        console.log('⚠️ Cache hit - SUSPICIOUS:', url);
-        warnUser(url, cachedResult.reason, cachedResult.confidence);
-      } else {
-        stats.legitimate++;
-        console.log('✅ Cache hit - SAFE:', url);
-      }
+      handleCachedResult(tabId, url, cachedResult);
       return;
     }
 
-    // Step 3: Quick heuristics (instant)
+    // Step 3: Client-side homograph check
+    const homographResult = checkHomograph(url);
+    if (homographResult.isSuspicious) {
+      stats.homographsDetected++;
+      console.log('Homograph detected:', homographResult.reasons);
+    }
+
+    // Step 4: @ symbol check
     const heuristicResult = quickHeuristicCheck(url);
     if (heuristicResult.shouldBlock) {
       const result = {
@@ -275,98 +301,199 @@ async function checkAndBlockURL(details) {
         reason: heuristicResult.reason,
         source: 'local_heuristics'
       };
-      
+
       await cache.set(url, result);
       stats.totalChecked++;
       stats.blocked++;
-      console.log('🚫 Heuristic block:', url);
-      blockTab(tabId, url, heuristicResult.reason);
+      console.log('[BLOCK] Heuristic block:', url);
+      blockTab(tabId, url, heuristicResult.reason, 'HEURISTIC');
+      addActivity(url, 'BLOCKED', heuristicResult.reason);
       return;
     }
 
-    // Step 4: Backend ML check
-    console.log('📡 Calling backend ML API...');
-    const apiResult = await checkWithBackendAPI(url);
-    
-    if (apiResult) {
-      // ML API succeeded
-      const result = {
-        status: apiResult.status,
-        confidence: apiResult.confidence,
-        reason: apiResult.reason,
-        source: 'backend_ml'
-      };
-      
-      await cache.set(url, result);
+    // Step 5: Anomaly detection (backend, local only)
+    console.log('Calling anomaly detection engine...');
+    const anomalyResult = await checkUrlAnomaly(url);
+
+    if (anomalyResult) {
+      // Combine anomaly result with client-side homograph
+      const effectiveRiskScore = Math.min(
+        anomalyResult.risk_score + homographResult.riskBoost,
+        100
+      );
+      const effectiveLevel = effectiveRiskScore >= 70 ? 'HIGH_ANOMALY'
+        : effectiveRiskScore >= 50 ? 'SUSPICIOUS'
+          : 'NORMAL';
+
+      if (effectiveLevel === 'HIGH_ANOMALY') {
+        const allReasons = [
+          ...anomalyResult.reasons,
+          ...homographResult.reasons
+        ];
+
+        const result = {
+          status: 'ANOMALY',
+          risk_score: effectiveRiskScore,
+          risk_level: effectiveLevel,
+          confidence: effectiveRiskScore / 100,
+          reason: allReasons.join('; ') || 'Structurally abnormal URL detected',
+          reasons: allReasons,
+          source: 'anomaly_detection',
+          allow_override: true
+        };
+
+        await cache.set(url, result);
+        stats.totalChecked++;
+        stats.anomaliesDetected++;
+        console.log('[ANOMALY]', url, `(risk: ${effectiveRiskScore})`);
+
+        // Warning page with override, not hard block
+        showAnomalyWarning(tabId, url, result);
+        addActivity(url, 'ANOMALY', allReasons[0] || 'Structural anomaly');
+        return;
+      }
+
+      if (effectiveLevel === 'SUSPICIOUS') {
+        stats.anomalySuspicious++;
+        console.log('[WARN] Anomaly suspicious:', url, `(risk: ${effectiveRiskScore})`);
+        warnUser(url,
+          anomalyResult.reasons[0] || 'URL shows unusual structural patterns',
+          effectiveRiskScore / 100
+        );
+        // Don't block, just notify — continue to ML check for second opinion
+      }
+    }
+
+    // Step 6: ML classification (complementary to anomaly)
+    console.log('Calling ML classifier...');
+    const mlResult = await checkWithBackendML(url);
+
+    if (mlResult) {
       stats.totalChecked++;
-      
-      if (apiResult.status === 'MALICIOUS') {
+
+      if (mlResult.status === 'MALICIOUS') {
+        // ML detected malicious pattern, block regardless of anomaly score
+        const result = {
+          status: 'MALICIOUS',
+          confidence: mlResult.confidence,
+          reason: mlResult.reason,
+          source: 'backend_ml'
+        };
+        await cache.set(url, result);
         stats.blocked++;
-        console.log('🚫 ML block:', url);
-        blockTab(tabId, url, apiResult.reason);
-      } else if (apiResult.status === 'SUSPICIOUS') {
+        console.log('[BLOCK] ML:', url);
+        blockTab(tabId, url, mlResult.reason, 'ML_CLASSIFIER');
+        addActivity(url, 'BLOCKED', mlResult.reason);
+      } else if (mlResult.status === 'SUSPICIOUS') {
         stats.warnings++;
-        console.log('⚠️ ML warning:', url);
-        warnUser(url, apiResult.reason, apiResult.confidence);
+        console.log('[WARN] ML:', url);
+        warnUser(url, mlResult.reason, mlResult.confidence);
+        addActivity(url, 'SUSPICIOUS', mlResult.reason);
       } else {
         stats.legitimate++;
-        console.log('✅ ML safe:', url);
+        console.log('[OK] ML safe:', url);
+        addActivity(url, 'SAFE', 'Passed all checks');
       }
     } else {
-      // Backend unavailable - use local only
-      console.log('⚠️ Backend unavailable - using local check only');
+      // Both backends unavailable — use local checks only
+      console.log('[WARN] Backends unavailable, using local checks only');
       const result = {
         status: 'LEGITIMATE',
         confidence: 0.5,
-        reason: 'Backend unavailable - local check passed',
+        reason: 'Backends unavailable, local checks passed',
         source: 'local_fallback'
       };
-      
+
       await cache.set(url, result);
       stats.totalChecked++;
       stats.legitimate++;
     }
 
   } catch (error) {
-    console.error('❌ Error in checkAndBlockURL:', error);
+    console.error('Error in checkAndBlockURL:', error);
     // On error, allow the page to load (fail-safe)
   }
 }
 
-function blockTab(tabId, url, reason) {
+// ==================== RESULT HANDLERS ====================
+
+function handleCachedResult(tabId, url, cachedResult) {
+  if (cachedResult.status === 'MALICIOUS') {
+    stats.blocked++;
+    console.log('[BLOCK] Cache hit:', url);
+    blockTab(tabId, url, cachedResult.reason, cachedResult.source || 'CACHED');
+  } else if (cachedResult.status === 'ANOMALY') {
+    stats.anomaliesDetected++;
+    console.log('[ANOMALY] Cache hit:', url);
+    showAnomalyWarning(tabId, url, cachedResult);
+  } else if (cachedResult.status === 'SUSPICIOUS') {
+    stats.warnings++;
+    console.log('[WARN] Cache hit:', url);
+    warnUser(url, cachedResult.reason, cachedResult.confidence);
+  } else {
+    stats.legitimate++;
+    console.log('[OK] Cache hit:', url);
+  }
+}
+
+function blockTab(tabId, url, reason, source) {
   blockedTabs.add(tabId);
 
-  // Show notification
   chrome.notifications.create({
     type: 'basic',
     iconUrl: chrome.runtime.getURL('assets/icons/icon48.png'),
-    title: '🚫 Malicious Website Blocked',
+    title: 'Malicious Website Blocked',
     message: reason || 'This site was flagged as dangerous',
     priority: 2
   });
 
-  console.log('🚫 BLOCKED:', url, '| Reason:', reason);
+  console.log('[BLOCK]', url, '| Source:', source, '| Reason:', reason);
 
-  // Redirect to warning page
-  const warningUrl = chrome.runtime.getURL('warning.html') + 
-                     '?url=' + encodeURIComponent(url) + 
-                     '&reason=' + encodeURIComponent(reason || 'Malicious site detected');
-  
+  const warningUrl = chrome.runtime.getURL('warning.html') +
+    '?url=' + encodeURIComponent(url) +
+    '&reason=' + encodeURIComponent(reason || 'Malicious site detected') +
+    '&source=' + encodeURIComponent(source || 'UNKNOWN') +
+    '&type=block';
+
+  chrome.tabs.update(tabId, { url: warningUrl });
+}
+
+function showAnomalyWarning(tabId, url, result) {
+  blockedTabs.add(tabId);
+
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('assets/icons/icon48.png'),
+    title: 'Structural Anomaly Detected',
+    message: `Risk score: ${result.risk_score}/100 — ${result.reasons?.[0] || 'Unusual URL pattern'}`,
+    priority: 1
+  });
+
+  console.log('[ANOMALY]', url, '| Risk:', result.risk_score);
+
+  const warningUrl = chrome.runtime.getURL('warning.html') +
+    '?url=' + encodeURIComponent(url) +
+    '&reason=' + encodeURIComponent(result.reason || 'Structural anomaly detected') +
+    '&source=ANOMALY_DETECTION' +
+    '&type=anomaly' +
+    '&risk_score=' + encodeURIComponent(result.risk_score) +
+    '&reasons=' + encodeURIComponent(JSON.stringify(result.reasons || []));
+
   chrome.tabs.update(tabId, { url: warningUrl });
 }
 
 function warnUser(url, reason, confidence) {
   const confidencePct = confidence ? (confidence * 100).toFixed(0) : '50';
-  
+
   chrome.notifications.create({
     type: 'basic',
     iconUrl: chrome.runtime.getURL('assets/icons/icon48.png'),
-    title: '⚠️ Suspicious Website',
+    title: 'Suspicious Website',
     message: `${reason} (${confidencePct}% confidence)`,
     priority: 1
   });
-  
-  console.log('⚠️ WARNING:', url);
+
+  console.log('[WARN]', url);
 }
 
 // ==================== EVENT LISTENERS ====================
@@ -374,7 +501,7 @@ function warnUser(url, reason, confidence) {
 // Listen to navigation requests
 chrome.webRequest.onBeforeRequest.addListener(
   checkAndBlockURL,
-  { 
+  {
     urls: ["<all_urls>"],
     types: ["main_frame"]
   }
@@ -383,12 +510,22 @@ chrome.webRequest.onBeforeRequest.addListener(
 // Message handler for popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getStats') {
-    sendResponse(stats);
+    sendResponse({ ...stats, recentActivity: recentActivity });
+  } else if (request.action === 'getActivity') {
+    sendResponse(recentActivity);
   } else if (request.action === 'clearCache') {
-    cache.clear().then(() => {
-      sendResponse({ success: true });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
+    // Only clear URL cache entries, not stats
+    chrome.storage.local.get(null, (items) => {
+      const urlKeys = Object.keys(items).filter(key =>
+        key.startsWith('http://') || key.startsWith('https://')
+      );
+      if (urlKeys.length > 0) {
+        chrome.storage.local.remove(urlKeys, () => {
+          sendResponse({ success: true, cleared: urlKeys.length });
+        });
+      } else {
+        sendResponse({ success: true, cleared: 0 });
+      }
     });
     return true; // Async response
   }
@@ -396,6 +533,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Startup log
-console.log('🛡️ Malicious URL Detector loaded!');
-console.log('   🤖 ML-First detection enabled');
-console.log('   📡 Backend API: ' + BACKEND_API);
+console.log('Sentinel v3.0.0 loaded');
+console.log('  Anomaly Detection enabled');
+console.log('  ML Classification enabled');
+console.log('  Homograph Protection enabled');
+console.log('  Backend API:', BACKEND_API);
+console.log('  All processing local');

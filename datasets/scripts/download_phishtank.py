@@ -10,7 +10,7 @@ import os
 
 def download_phishtank():
     print("=" * 60)
-    print("📥 DOWNLOADING PHISHTANK DATABASE")
+    print(" DOWNLOADING PHISHTANK DATABASE")
     print("=" * 60)
     
     # Create raw directory if it doesn't exist
@@ -19,7 +19,7 @@ def download_phishtank():
     # PhishTank verified phishing URLs (JSON format)
     url = "http://data.phishtank.com/data/online-valid.json"
     
-    print(f"\n🌐 Fetching from: {url}")
+    print(f"\n Fetching from: {url}")
     print("⏳ This may take a minute...\n")
     
     try:
@@ -28,7 +28,7 @@ def download_phishtank():
         
         data = response.json()
         
-        print(f"✅ Downloaded {len(data)} phishing URLs")
+        print(f" Downloaded {len(data)} phishing URLs")
         
         # Save to CSV
         csv_path = '../raw/phishtank.csv'
@@ -46,27 +46,27 @@ def download_phishtank():
                     entry.get('phish_id', '')
                 ])
         
-        print(f"💾 Saved to: {csv_path}")
-        print(f"📊 Total phishing URLs: {len(data)}")
+        print(f" Saved to: {csv_path}")
+        print(f" Total phishing URLs: {len(data)}")
         
         # Also save raw JSON for reference
         json_path = '../raw/phishtank.json'
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
         
-        print(f"💾 Raw JSON saved to: {json_path}")
+        print(f" Raw JSON saved to: {json_path}")
         
         return len(data)
         
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error downloading PhishTank data: {e}")
+        print(f" Error downloading PhishTank data: {e}")
         return 0
     except Exception as e:
-        print(f"❌ Error processing data: {e}")
+        print(f" Error processing data: {e}")
         return 0
 
 if __name__ == '__main__':
     count = download_phishtank()
     print("\n" + "=" * 60)
-    print(f"✅ PHISHTANK DOWNLOAD COMPLETE: {count} URLs")
+    print(f" PHISHTANK DOWNLOAD COMPLETE: {count} URLs")
     print("=" * 60)

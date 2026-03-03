@@ -1,67 +1,147 @@
-console.log('Warning.js loaded!');
+console.log('Warning.js v3.0.0 loaded');
 
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM Content Loaded!');
-  
+document.addEventListener('DOMContentLoaded', function () {
   const urlParams = new URLSearchParams(window.location.search);
   const blockedUrl = urlParams.get('url');
   const blockReason = urlParams.get('reason');
-  
-  console.log('URL from params:', blockedUrl);
-  console.log('Reason from params:', blockReason);
-  
-  const urlElement = document.getElementById('blockedUrl');
-  const reasonElement = document.getElementById('blockReason');
-  
-  if (urlElement) {
-    if (blockedUrl) {
-      urlElement.textContent = decodeURIComponent(blockedUrl);
-      console.log('Set URL to:', urlElement.textContent);
-    } else {
-      urlElement.textContent = 'Unknown URL';
-      console.log('No URL parameter found');
+  const source = urlParams.get('source') || 'UNKNOWN';
+  const type = urlParams.get('type') || 'block';     // 'block' or 'anomaly'
+  const riskScore = parseInt(urlParams.get('risk_score') || '0');
+  let reasons = [];
+
+  try {
+    const rawReasons = urlParams.get('reasons');
+    if (rawReasons) {
+      reasons = JSON.parse(decodeURIComponent(rawReasons));
     }
-  } else {
-    console.error('blockedUrl element not found!');
+  } catch (e) {
+    console.error('Failed to parse reasons:', e);
   }
-  
-  if (reasonElement) {
-    if (blockReason) {
-      reasonElement.textContent = decodeURIComponent(blockReason);
-      console.log('Set reason to:', reasonElement.textContent);
-    } else {
-      reasonElement.textContent = 'This URL was flagged as potentially malicious.';
-      console.log('No reason parameter found');
-    }
+
+  // Set mode
+  const isAnomaly = type === 'anomaly';
+  document.body.classList.add(isAnomaly ? 'mode-anomaly' : 'mode-block');
+
+  // Icon
+  const iconEl = document.getElementById('warningIcon');
+  if (isAnomaly) {
+    iconEl.textContent = '!';
+    iconEl.classList.add('icon-anomaly');
   } else {
-    console.error('blockReason element not found!');
+    iconEl.textContent = '!';
+    iconEl.classList.add('icon-block');
   }
-  
-  const closeBtn = document.getElementById('closeBtn');
-  if (closeBtn) {
-    console.log('Close button found');
-    closeBtn.addEventListener('click', function() {
-      console.log('Close button clicked!');
-      window.close();
-      setTimeout(function() {
-        console.log('Navigating to blank');
-        window.location.href = 'about:blank';
-      }, 100);
+
+  // Source badge
+  const badgeEl = document.getElementById('sourceBadge');
+  const sourceLabels = {
+    'ANOMALY_DETECTION': 'Zero-Day Anomaly Detection',
+    'ML_CLASSIFIER': 'ML Classifier',
+    'HEURISTIC': 'Heuristic Filter',
+    'CACHED': 'Cached Result'
+  };
+  badgeEl.textContent = sourceLabels[source] || source;
+
+  if (isAnomaly) {
+    badgeEl.classList.add('badge-anomaly');
+  } else if (source === 'HEURISTIC') {
+    badgeEl.classList.add('badge-heuristic');
+  } else {
+    badgeEl.classList.add('badge-ml');
+  }
+
+  // Title
+  const titleEl = document.getElementById('warningTitle');
+  if (isAnomaly) {
+    titleEl.textContent = 'Structural Anomaly Detected';
+    titleEl.classList.add('anomaly-title');
+  } else {
+    titleEl.textContent = 'Malicious Website Blocked';
+    titleEl.classList.add('block-title');
+  }
+
+  // Message
+  const msgEl = document.getElementById('warningMessage');
+  if (isAnomaly) {
+    msgEl.textContent =
+      'This URL\'s structure is statistically different from normal browsing patterns. ' +
+      'It may be safe, but it was flagged for your review.';
+  } else {
+    msgEl.textContent =
+      'This website has been identified as potentially dangerous and was blocked for your safety.';
+  }
+
+  // URL
+  const urlEl = document.getElementById('blockedUrl');
+  urlEl.textContent = blockedUrl ? decodeURIComponent(blockedUrl) : 'Unknown URL';
+
+  // Risk gauge (anomaly only)
+  if (isAnomaly && riskScore > 0) {
+    const scoreTextEl = document.getElementById('riskScoreText');
+    const fillEl = document.getElementById('riskGaugeFill');
+
+    scoreTextEl.textContent = riskScore;
+
+    // Set color class
+    let riskClass = 'risk-low';
+    if (riskScore >= 70) riskClass = 'risk-high';
+    else if (riskScore >= 50) riskClass = 'risk-medium';
+
+    scoreTextEl.classList.add(riskClass);
+    fillEl.classList.add(riskClass);
+
+    // Animate fill after a short delay
+    setTimeout(() => {
+      fillEl.style.width = riskScore + '%';
+    }, 100);
+  }
+
+  // Reasons list (anomaly only)
+  if (isAnomaly && reasons.length > 0) {
+    const ulEl = document.getElementById('reasonsUl');
+    reasons.forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = r;
+      ulEl.appendChild(li);
     });
-  } else {
-    console.error('Close button not found!');
+  } else if (isAnomaly && blockReason) {
+    const ulEl = document.getElementById('reasonsUl');
+    const li = document.createElement('li');
+    li.textContent = decodeURIComponent(blockReason);
+    ulEl.appendChild(li);
   }
-  
-  const homeBtn = document.getElementById('homeBtn');
-  if (homeBtn) {
-    console.log('Home button found');
-    homeBtn.addEventListener('click', function() {
-      console.log('Home button clicked!');
-      window.location.href = 'https://www.google.com';
+
+  // Single reason (block mode)
+  if (!isAnomaly) {
+    const reasonEl = document.getElementById('blockReason');
+    reasonEl.textContent = blockReason
+      ? decodeURIComponent(blockReason)
+      : 'This URL was flagged as potentially malicious.';
+  }
+
+  // Button handlers
+
+  // Close tab
+  document.getElementById('closeBtn').addEventListener('click', function () {
+    window.close();
+    setTimeout(() => { window.location.href = 'about:blank'; }, 100);
+  });
+
+  // Go home
+  document.getElementById('homeBtn').addEventListener('click', function () {
+    window.location.href = 'https://www.google.com';
+  });
+
+  // Proceed anyway (anomaly override)
+  const proceedBtn = document.getElementById('proceedBtn');
+  if (proceedBtn) {
+    proceedBtn.addEventListener('click', function () {
+      if (blockedUrl) {
+        // Navigate to the original URL
+        window.location.href = decodeURIComponent(blockedUrl);
+      }
     });
-  } else {
-    console.error('Home button not found!');
   }
-  
-  console.log('All event listeners attached!');
+
+  console.log(`Warning page initialized: type=${type}, source=${source}, riskScore=${riskScore}`);
 });
