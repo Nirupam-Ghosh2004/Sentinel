@@ -141,19 +141,39 @@ class MLServiceFinal:
             if reputation_score is not None:
                 print(f"\n    Confidence Adjustment:")
                 
+                # Compute structural innocence score: features that suggest legitimacy
+                is_https = features.get('is_https', 0) == 1
+                is_ip = features.get('is_ip_address', 0) == 1
+                sus_tld = features.get('is_suspicious_tld', 0) == 1
+                has_at = features.get('num_at', 0) > 0
+                
+                # A URL with HTTPS, no IP, no suspicious TLD, no @ is structurally benign
+                structural_innocence = sum([is_https, not is_ip, not sus_tld, not has_at])
+                
                 # Case 1: ML says MALICIOUS but reputation is HIGH
                 if ml_score >= 0.5 and reputation_score >= 70:
-                    # Strong reputation contradicts ML → investigate
-                    adjustment_factor = 0.3  # Reduce malicious confidence significantly
-                    final_score = ml_score * adjustment_factor
-                    adjustment_reason = f"High reputation ({reputation_score}/100) contradicts ML prediction - reducing malicious confidence"
+                    # Graduate factor based on how high the reputation is
+                    # Rep 70 → factor 0.30, Rep 80 → 0.20, Rep 90+ → 0.10
+                    base_factor = max(0.10, 0.50 - (reputation_score / 200))
+                    
+                    # Extra reduction if the URL is structurally clean
+                    if structural_innocence >= 3:
+                        base_factor *= 0.5  # Halve it — probably a false positive
+                    
+                    final_score = ml_score * base_factor
+                    adjustment_reason = (
+                        f"High reputation ({reputation_score}/100) overrides ML "
+                        f"(struct_clean={structural_innocence}/4, factor={base_factor:.2f})"
+                    )
                     print(f"       CONFLICT: ML={ml_score:.3f} but Reputation={reputation_score}/100")
-                    print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
+                    print(f"       Structural innocence: {structural_innocence}/4")
+                    print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {base_factor:.2f})")
                 
                 # Case 2: ML says MALICIOUS and reputation is MEDIUM
-                elif ml_score >= 0.5 and 50 <= reputation_score < 70:
-                    # Moderate reputation → slightly reduce confidence
-                    adjustment_factor = 0.7
+                elif ml_score >= 0.5 and 40 <= reputation_score < 70:
+                    adjustment_factor = 0.6
+                    if structural_innocence >= 3:
+                        adjustment_factor = 0.45
                     final_score = ml_score * adjustment_factor
                     adjustment_reason = f"Moderate reputation ({reputation_score}/100) suggests reconsideration"
                     print(f"      MODERATE: ML={ml_score:.3f}, Reputation={reputation_score}/100")
@@ -161,9 +181,8 @@ class MLServiceFinal:
                 
                 # Case 3: ML says LEGITIMATE but reputation is LOW
                 elif ml_score < 0.5 and reputation_score < 30:
-                    # Low reputation + ML says safe → increase suspicion slightly
                     adjustment_factor = 1.3
-                    final_score = min(ml_score * adjustment_factor, 0.45)  # Cap at suspicious
+                    final_score = min(ml_score * adjustment_factor, 0.45)
                     adjustment_reason = f"Low reputation ({reputation_score}/100) raises concern"
                     print(f"       CONCERN: ML={ml_score:.3f} (safe) but Reputation={reputation_score}/100 (low)")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
