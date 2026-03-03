@@ -1,4 +1,6 @@
-# Sentinel
+<p align="center">
+  <img src="https://github.com/Nirupam-Ghosh2004/Sentinel/blob/main/readme-assets/banner.gif" alt="Header GIF">
+</p>
 
 **Browser-based malicious URL detection using dual ML engines, anomaly scoring, and homograph analysis — fully local, fully private.**
 
