@@ -57,17 +57,17 @@ class MLServiceV3:
             model_path = self.settings.model_path
             features_path = self.settings.feature_names_path
             
-            print(f"📦 Loading V2 model from: {model_path}")
+            print(f" Loading V2 model from: {model_path}")
             self.model = joblib.load(model_path)
             
-            print(f"📦 Loading feature names from: {features_path}")
+            print(f" Loading feature names from: {features_path}")
             self.feature_names = joblib.load(features_path)
             
-            print(f"✅ Model V3 loaded with reputation scoring!")
+            print(f" Model V3 loaded with reputation scoring!")
             print(f"   ML Features: {len(self.feature_names)}")
             
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(f" Error loading model: {e}")
             raise
     
     def _get_root_domain(self, hostname: str) -> str:
@@ -85,7 +85,7 @@ class MLServiceV3:
         # Check if any trusted parent domain is in the hostname
         for parent in self.trusted_parent_domains:
             if f'.{parent}.' in hostname_lower or hostname_lower.startswith(f'{parent}.'):
-                print(f"  ✅ Trusted subdomain of {parent}")
+                print(f"   Trusted subdomain of {parent}")
                 return True
         
         return False
@@ -162,7 +162,7 @@ class MLServiceV3:
                 check_domain = hostname
                 if hostname.count('.') > 1:
                     root_domain = self._get_root_domain(hostname)
-                    print(f"  🔍 Subdomain detected, checking root: {root_domain}")
+                    print(f"   Subdomain detected, checking root: {root_domain}")
                     check_domain = root_domain
                 
                 reputation_result = self.reputation_service.calculate_reputation_score(f"https://{check_domain}")
@@ -199,11 +199,11 @@ class MLServiceV3:
                 if reputation_score >= 50 and ml_score >= 0.5:
                     confidence_adjustment = 0.6  # Stronger adjustment
                     final_score = ml_score * confidence_adjustment
-                    print(f"  📊 ML confidence adjusted by reputation: {ml_score:.3f} → {final_score:.3f}")
+                    print(f"   ML confidence adjusted by reputation: {ml_score:.3f} → {final_score:.3f}")
                 elif reputation_score >= 40 and ml_score >= 0.5:
                     confidence_adjustment = 0.75
                     final_score = ml_score * confidence_adjustment
-                    print(f"  📊 ML confidence adjusted by reputation: {ml_score:.3f} → {final_score:.3f}")
+                    print(f"   ML confidence adjusted by reputation: {ml_score:.3f} → {final_score:.3f}")
             
             # Step 6: Determine final status
             status, confidence, reason = self._interpret_prediction(
@@ -228,7 +228,7 @@ class MLServiceV3:
             return result
             
         except Exception as e:
-            print(f"❌ Prediction error for {url}: {e}")
+            print(f" Prediction error for {url}: {e}")
             raise
     
     def _interpret_prediction(

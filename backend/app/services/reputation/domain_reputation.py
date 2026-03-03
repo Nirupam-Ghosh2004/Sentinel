@@ -85,7 +85,7 @@ class DomainReputationService:
             if not hostname:
                 return self._get_default_score("Invalid hostname")
             
-            print(f"🔍 Calculating reputation for: {hostname}")
+            print(f" Calculating reputation for: {hostname}")
             
             score_breakdown = {}
             total_score = 0
@@ -141,7 +141,7 @@ class DomainReputationService:
             
             trust_level = self._get_trust_level(total_score)
             
-            print(f"  ✅ Score: {total_score}/100 ({trust_level})")
+            print(f"   Score: {total_score}/100 ({trust_level})")
             
             return {
                 'total_score': total_score,
@@ -153,7 +153,7 @@ class DomainReputationService:
             }
             
         except Exception as e:
-            print(f"  ❌ Error calculating reputation: {e}")
+            print(f"   Error calculating reputation: {e}")
             return self._get_default_score(f"Error: {str(e)}")
     
     def _check_popularity(self, hostname: str) -> int:
@@ -166,7 +166,7 @@ class DomainReputationService:
         # Check exact match or subdomain
         for top_domain in self.top_domains:
             if hostname_lower == top_domain or hostname_lower.endswith('.' + top_domain):
-                print(f"  ✅ Popular domain detected")
+                print(f"   Popular domain detected")
                 return 30
         
         return 0
@@ -189,7 +189,7 @@ class DomainReputationService:
                     age = datetime.now() - creation_date
                     days_old = age.days
                     
-                    print(f"  📅 Domain age: {days_old} days ({days_old // 365} years)")
+                    print(f"   Domain age: {days_old} days ({days_old // 365} years)")
                     
                     # Scoring
                     if days_old > 3650:  # 10+ years
@@ -205,11 +205,11 @@ class DomainReputationService:
                     elif days_old > 90:  # 3-6 months
                         return (2, days_old)
                     else:  # < 3 months (very suspicious)
-                        print(f"  ⚠️  Very new domain (< 3 months)")
+                        print(f"    Very new domain (< 3 months)")
                         return (0, days_old)
                     
         except Exception as e:
-            print(f"  ⚠️  WHOIS lookup failed: {e}")
+            print(f"    WHOIS lookup failed: {e}")
             return (0, None)
         
         return (0, None)
@@ -253,9 +253,9 @@ class DomainReputationService:
                         
                         if any(trusted in issuer_org for trusted in trusted_issuers):
                             score += 8
-                            print(f"  🔒 Valid SSL from {issuer_org}")
+                            print(f"   Valid SSL from {issuer_org}")
                         else:
-                            print(f"  🔒 Valid SSL (issuer: {issuer_org})")
+                            print(f"   Valid SSL (issuer: {issuer_org})")
                         
                         cert_info = {
                             'valid': True,
@@ -265,11 +265,11 @@ class DomainReputationService:
                         
                         return (score, cert_info)
                     else:
-                        print(f"  ⚠️  Expired SSL certificate")
+                        print(f"    Expired SSL certificate")
                         return (0, {'valid': False, 'reason': 'expired'})
                     
         except Exception as e:
-            print(f"  ⚠️  No SSL or connection failed: {e}")
+            print(f"    No SSL or connection failed: {e}")
             return (0, {'valid': False, 'reason': str(e)})
         
         return (0, {'valid': False})
@@ -288,16 +288,16 @@ class DomainReputationService:
                 answers = dns.resolver.resolve(hostname, 'A')
                 dns_info['a_records'] = [str(rdata) for rdata in answers]
                 score += 5
-                print(f"  ✅ Has A record")
+                print(f"   Has A record")
             except:
-                print(f"  ⚠️  No A record")
+                print(f"    No A record")
             
             # Check MX record (email)
             try:
                 answers = dns.resolver.resolve(hostname, 'MX')
                 dns_info['mx_records'] = [str(rdata) for rdata in answers]
                 score += 5
-                print(f"  ✅ Has MX record (email configured)")
+                print(f"   Has MX record (email configured)")
             except:
                 pass
             
@@ -309,7 +309,7 @@ class DomainReputationService:
                 
                 if ns_count >= 2:
                     score += 5
-                    print(f"  ✅ Has {ns_count} nameservers")
+                    print(f"   Has {ns_count} nameservers")
                 elif ns_count >= 1:
                     score += 3
                 
@@ -319,7 +319,7 @@ class DomainReputationService:
             return (score, dns_info)
             
         except Exception as e:
-            print(f"  ⚠️  DNS check failed: {e}")
+            print(f"    DNS check failed: {e}")
             return (0, {})
     
     def _check_whois_info(self, hostname: str) -> tuple:
@@ -336,7 +336,7 @@ class DomainReputationService:
             if w.registrar:
                 score += 5
                 whois_info['registrar'] = w.registrar
-                print(f"  ✅ Registrar: {w.registrar}")
+                print(f"   Registrar: {w.registrar}")
             
             # Has name servers
             if w.name_servers and len(w.name_servers) >= 2:
@@ -351,7 +351,7 @@ class DomainReputationService:
             return (score, whois_info)
             
         except Exception as e:
-            print(f"  ⚠️  WHOIS failed: {e}")
+            print(f"    WHOIS failed: {e}")
             return (0, {})
     
     def _get_trust_level(self, score: int) -> str:

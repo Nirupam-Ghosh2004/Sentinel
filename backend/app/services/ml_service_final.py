@@ -37,18 +37,18 @@ class MLServiceFinal:
             model_path = self.settings.model_path
             features_path = self.settings.feature_names_path
             
-            print(f"📦 Loading ML model from: {model_path}")
+            print(f" Loading ML model from: {model_path}")
             self.model = joblib.load(model_path)
             
-            print(f"📦 Loading feature names from: {features_path}")
+            print(f" Loading feature names from: {features_path}")
             self.feature_names = joblib.load(features_path)
             
-            print(f"✅ ML-First Model Loaded!")
+            print(f" ML-First Model Loaded!")
             print(f"   Features: {len(self.feature_names)}")
             print(f"   Strategy: ML predictions + Reputation validation")
             
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(f" Error loading model: {e}")
             raise
     
     def predict(self, url: str, use_reputation: bool = True) -> Dict:
@@ -81,14 +81,14 @@ class MLServiceFinal:
             # STEP 1: FEATURE EXTRACTION (YOUR ML PIPELINE)
             # ============================================================
             print(f"\n{'='*70}")
-            print(f"🤖 ML PREDICTION FOR: {url}")
+            print(f" ML PREDICTION FOR: {url}")
             print(f"{'='*70}")
             
             features = self.extractor.extract_features(url)
-            print(f"  ✅ Extracted {len(features)} features")
+            print(f"   Extracted {len(features)} features")
             
             # Show key features
-            print(f"  📊 Key features:")
+            print(f"   Key features:")
             print(f"     - URL length: {features.get('url_length', 0)}")
             print(f"     - Has path: {features.get('has_path', 0)}")
             print(f"     - Is HTTPS: {features.get('is_https', 0)}")
@@ -106,7 +106,7 @@ class MLServiceFinal:
             prediction_proba = self.model.predict_proba(feature_df)[0]
             ml_score = float(prediction_proba[1])  # Probability of malicious
             
-            print(f"\n  🎯 ML Model Prediction:")
+            print(f"\n   ML Model Prediction:")
             print(f"     - Malicious probability: {ml_score:.4f} ({ml_score*100:.2f}%)")
             print(f"     - Legitimate probability: {1-ml_score:.4f} ({(1-ml_score)*100:.2f}%)")
             
@@ -117,7 +117,7 @@ class MLServiceFinal:
             reputation_data = None
             
             if use_reputation:
-                print(f"\n  🔍 Reputation Validation:")
+                print(f"\n   Reputation Validation:")
                 
                 # Get root domain for reputation check
                 check_domain = self._get_root_domain(hostname)
@@ -139,7 +139,7 @@ class MLServiceFinal:
             adjustment_reason = None
             
             if reputation_score is not None:
-                print(f"\n  ⚖️  Confidence Adjustment:")
+                print(f"\n    Confidence Adjustment:")
                 
                 # Case 1: ML says MALICIOUS but reputation is HIGH
                 if ml_score >= 0.5 and reputation_score >= 70:
@@ -147,7 +147,7 @@ class MLServiceFinal:
                     adjustment_factor = 0.3  # Reduce malicious confidence significantly
                     final_score = ml_score * adjustment_factor
                     adjustment_reason = f"High reputation ({reputation_score}/100) contradicts ML prediction - reducing malicious confidence"
-                    print(f"     ⚠️  CONFLICT: ML={ml_score:.3f} but Reputation={reputation_score}/100")
+                    print(f"       CONFLICT: ML={ml_score:.3f} but Reputation={reputation_score}/100")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
                 
                 # Case 2: ML says MALICIOUS and reputation is MEDIUM
@@ -156,7 +156,7 @@ class MLServiceFinal:
                     adjustment_factor = 0.7
                     final_score = ml_score * adjustment_factor
                     adjustment_reason = f"Moderate reputation ({reputation_score}/100) suggests reconsideration"
-                    print(f"     📊 MODERATE: ML={ml_score:.3f}, Reputation={reputation_score}/100")
+                    print(f"      MODERATE: ML={ml_score:.3f}, Reputation={reputation_score}/100")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
                 
                 # Case 3: ML says LEGITIMATE but reputation is LOW
@@ -165,13 +165,13 @@ class MLServiceFinal:
                     adjustment_factor = 1.3
                     final_score = min(ml_score * adjustment_factor, 0.45)  # Cap at suspicious
                     adjustment_reason = f"Low reputation ({reputation_score}/100) raises concern"
-                    print(f"     ⚠️  CONCERN: ML={ml_score:.3f} (safe) but Reputation={reputation_score}/100 (low)")
+                    print(f"       CONCERN: ML={ml_score:.3f} (safe) but Reputation={reputation_score}/100 (low)")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
                 
                 # Case 4: ML and Reputation agree
                 else:
                     adjustment_reason = f"ML and reputation align (rep: {reputation_score}/100)"
-                    print(f"     ✅ ALIGNED: ML={ml_score:.3f}, Reputation={reputation_score}/100")
+                    print(f"      ALIGNED: ML={ml_score:.3f}, Reputation={reputation_score}/100")
                     print(f"     → No adjustment needed")
             
             # ============================================================
@@ -186,7 +186,7 @@ class MLServiceFinal:
                 adjustment_reason
             )
             
-            print(f"\n  🎯 FINAL DECISION:")
+            print(f"\n   FINAL DECISION:")
             print(f"     Status: {status}")
             print(f"     Confidence: {confidence:.4f} ({confidence*100:.2f}%)")
             print(f"     Reason: {reason}")
@@ -220,7 +220,7 @@ class MLServiceFinal:
             return result
             
         except Exception as e:
-            print(f"❌ Prediction error for {url}: {e}")
+            print(f" Prediction error for {url}: {e}")
             raise
     
     def _get_root_domain(self, hostname: str) -> str:

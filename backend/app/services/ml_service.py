@@ -48,19 +48,19 @@ class MLService:
             model_path = self.settings.model_path
             features_path = self.settings.feature_names_path
             
-            print(f"📦 Loading V2 model from: {model_path}")
+            print(f" Loading V2 model from: {model_path}")
             self.model = joblib.load(model_path)
             
-            print(f"📦 Loading feature names from: {features_path}")
+            print(f" Loading feature names from: {features_path}")
             self.feature_names = joblib.load(features_path)
             
-            print(f"✅ Model V2 loaded successfully!")
+            print(f" Model V2 loaded successfully!")
             print(f"   Features: {len(self.feature_names)}")
             print(f"   Safe domains: {len(self.safe_domains)}")
             print(f"   Long URL OK domains: {len(self.long_url_ok_domains)}")
             
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(f" Error loading model: {e}")
             raise
     
     def _is_whitelisted_domain(self, hostname: str) -> bool:
@@ -119,7 +119,7 @@ class MLService:
             }
             
         except Exception as e:
-            print(f"❌ Prediction error for {url}: {e}")
+            print(f" Prediction error for {url}: {e}")
             raise
     
     def _apply_heuristic_overrides(self, url: str, features: Dict) -> Dict:

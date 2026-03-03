@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     malicious_threshold: float = 0.70  # Raised from 0.50 to 0.70
     suspicious_threshold: float = 0.40  # Raised from 0.30 to 0.40
     
+    # Anomaly Detection Settings
+    anomaly_model_path: str = "app/ml_models/isolation_forest.pkl"
+    anomaly_scaler_path: str = "app/ml_models/anomaly_scaler.pkl"
+    anomaly_baseline_path: str = "app/ml_models/baseline_stats.pkl"
+    anomaly_high_threshold: float = 0.70       # ≥70 → HIGH_ANOMALY
+    anomaly_suspicious_threshold: float = 0.50  # ≥50 → SUSPICIOUS
+    
     # Rate Limiting
     rate_limit: int = 100
     
