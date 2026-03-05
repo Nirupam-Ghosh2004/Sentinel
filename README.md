@@ -2,6 +2,14 @@
   <img src="https://github.com/Nirupam-Ghosh2004/Sentinel/blob/main/readme-assets/banner.gif" alt="Header GIF">
 </p>
 
+![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal?logo=fastapi)
+![XGBoost](https://img.shields.io/badge/XGBoost-99.89%25_accuracy-green)
+![Chrome](https://img.shields.io/badge/Chrome-Manifest_V3-yellow?logo=googlechrome)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Privacy](https://img.shields.io/badge/Privacy-100%25_Local-purple)
+![Stars](https://img.shields.io/github/stars/Nirupam-Ghosh2004/Sentinel?style=social)
+
 **Browser-based malicious URL detection using dual ML engines, anomaly scoring, and homograph analysis — fully local, fully private.**
 
 ---
