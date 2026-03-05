@@ -341,7 +341,7 @@ Features like `path_depth` had near-zero standard deviation in the original trai
 
 ---
 
-## Screenshots
+<!-- ## Screenshots
 
 > Replace these placeholders with actual screenshots from your deployment.
 
@@ -351,7 +351,7 @@ Features like `path_depth` had near-zero standard deviation in the original trai
 | Block Warning Page | `readme-assets/block-page.png` |
 | Anomaly Warning Page | `readme-assets/anomaly-page.png` |
 | Swagger API Docs | `readme-assets/swagger.png` |
-| Anomaly API Response | `readme-assets/anomaly-response.png` |
+| Anomaly API Response | `readme-assets/anomaly-response.png` | -->
 
 ---
 
