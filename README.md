@@ -31,9 +31,9 @@ The result is a system that catches both known phishing patterns and zero-day th
 ## Demo
 
 
-| Warning Page (Block) | Warning Page (Anomaly) | Extension Popup |
-|---|---|---|
-| ![Block Page](readme-assets/block-page.png) | ![Anomaly Page](readme-assets/anomaly-page.png) | ![Popup](readme-assets/popup.png) |
+| Warning Page (Anomaly) | Extension Popup |
+|---|---|
+| ![Anomaly Page](readme-assets/anomaly-page.png) | ![Popup](readme-assets/popup.png) |
 
 ---
 
