@@ -4,6 +4,7 @@ URL checking routes - ML-First approach
 from fastapi import APIRouter, HTTPException, Depends, Query
 from app.models.schemas import URLCheckRequest, URLCheckResponse
 from app.services.ml_service_final import get_ml_service
+import asyncio
 import time
 
 router = APIRouter(prefix="/api", tags=["URL Checking"])
@@ -32,8 +33,10 @@ async def check_url(
     - Full transparency in response
     """
     try:
-        # Get ML prediction with optional reputation validation
-        result = ml_service.predict(request.url, use_reputation=use_reputation)
+        # Run ML prediction + reputation in a thread pool (both are blocking I/O)
+        result = await asyncio.to_thread(
+            ml_service.predict, request.url, use_reputation
+        )
         
         # Update statistics
         stats["total_checks"] += 1
@@ -49,14 +52,20 @@ async def check_url(
         else:
             stats["legitimate"] += 1
         
-        # Build response
+        # Build response — include full data for warning page
+        features_data = result.get('transparency', {})
+        # Add reputation + ML raw data for the warning page panels
+        features_data['ml_raw_score'] = result.get('ml_raw_score')
+        features_data['reputation_score'] = result.get('reputation_score')
+        features_data['reputation_data'] = result.get('reputation_data')
+        
         response = URLCheckResponse(
             url=request.url,
             status=result['status'],
             confidence=result['confidence'],
             prediction_score=result['prediction_score'],
             reason=result['reason'],
-            features=result.get('transparency', {})
+            features=features_data
         )
         
         return response

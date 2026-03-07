@@ -141,40 +141,59 @@ class MLServiceFinal:
             if reputation_score is not None:
                 print(f"\n    Confidence Adjustment:")
                 
-                # Compute structural innocence: basic URL features that suggest legitimacy
+                # Compute structural innocence score: features that suggest legitimacy
                 is_https = features.get('is_https', 0) == 1
                 is_ip = features.get('is_ip_address', 0) == 1
                 sus_tld = features.get('is_suspicious_tld', 0) == 1
                 has_at = features.get('num_at', 0) > 0
+                
+                # A URL with HTTPS, no IP, no suspicious TLD, no @ is structurally benign
                 structural_innocence = sum([is_https, not is_ip, not sus_tld, not has_at])
                 
-                # Detect benign URL patterns that the ML model doesn't understand
-                benign_signals = self._detect_benign_patterns(url, parsed)
-                benign_count = len(benign_signals)
+                # ---- HOSTING PLATFORM CHECK ----
+                # When a URL is on a free hosting platform, the reputation belongs
+                # to the HOSTING PROVIDER, not the content. Phishers exploit this.
+                # Trust the ML model's judgment in these cases.
+                HOSTING_PLATFORMS = [
+                    'weeblysite.com', 'weebly.com', 'wixsite.com', 'wix.com',
+                    'blogspot.com', 'wordpress.com', 'sites.google.com',
+                    'github.io', 'netlify.app', 'vercel.app', 'herokuapp.com',
+                    'firebaseapp.com', 'web.app', 'azurewebsites.net',
+                    'squarespace.com', 'godaddysites.com', 'page.link',
+                    'carrd.co', 'notion.site', 'glitch.me',
+                    'myshopify.com', 'webflow.io', '000webhostapp.com',
+                    'freenom.com', 'rf.gd', 'epizy.com',
+                ]
                 
-                if benign_signals:
-                    print(f"       Benign patterns detected: {', '.join(benign_signals)}")
-                
-                # Check if reputation data is incomplete (WHOIS failed)
-                whois_failed = (
-                    reputation_data and
-                    reputation_data.get('components', {}).get('domain_age', 0) == 0 and
-                    reputation_data.get('components', {}).get('registrar_info', 0) == 0
+                root_domain = self._get_root_domain(hostname)
+                is_hosting_platform = any(
+                    hostname.endswith('.' + hp) or root_domain == hp 
+                    for hp in HOSTING_PLATFORMS
                 )
-                if whois_failed:
-                    print(f"       WHOIS data incomplete — reputation score may be understated")
+                
+                if is_hosting_platform and ml_score >= 0.5:
+                    # Don't let the hosting platform's reputation override ML
+                    print(f"      HOSTING PLATFORM: {root_domain} — reputation reflects the platform, not content")
+                    print(f"      ML score {ml_score:.3f} trusted as-is (no reputation override)")
+                    adjustment_reason = f"Hosting platform ({root_domain}): ML score trusted, reputation ({reputation_score}/100) ignored"
                 
                 # Case 1: ML says MALICIOUS but reputation is HIGH
-                if ml_score >= 0.5 and reputation_score >= 70:
+                elif ml_score >= 0.5 and reputation_score >= 70:
+                    # Graduate factor based on how high the reputation is
+                    # Rep 70 → factor 0.30, Rep 80 → 0.20, Rep 90+ → 0.10
                     base_factor = max(0.10, 0.50 - (reputation_score / 200))
+                    
+                    # Extra reduction if the URL is structurally clean
                     if structural_innocence >= 3:
-                        base_factor *= 0.5
+                        base_factor *= 0.5  # Halve it — probably a false positive
+                    
                     final_score = ml_score * base_factor
                     adjustment_reason = (
                         f"High reputation ({reputation_score}/100) overrides ML "
                         f"(struct_clean={structural_innocence}/4, factor={base_factor:.2f})"
                     )
                     print(f"       CONFLICT: ML={ml_score:.3f} but Reputation={reputation_score}/100")
+                    print(f"       Structural innocence: {structural_innocence}/4")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {base_factor:.2f})")
                 
                 # Case 2: ML says MALICIOUS and reputation is MEDIUM
@@ -182,32 +201,12 @@ class MLServiceFinal:
                     adjustment_factor = 0.6
                     if structural_innocence >= 3:
                         adjustment_factor = 0.45
-                    if benign_count >= 2:
-                        adjustment_factor *= 0.6
                     final_score = ml_score * adjustment_factor
                     adjustment_reason = f"Moderate reputation ({reputation_score}/100) suggests reconsideration"
                     print(f"      MODERATE: ML={ml_score:.3f}, Reputation={reputation_score}/100")
-                    print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor:.2f})")
-                
-                # Case 3: ML says MALICIOUS, reputation is LOW, but URL has strong benign patterns
-                # This catches e-commerce URLs where WHOIS failed (common for .in, .co, etc.)
-                elif ml_score >= 0.5 and reputation_score < 40 and benign_count >= 2 and structural_innocence >= 3:
-                    # URL looks legitimate structurally — ML is probably wrong due to path/query bias
-                    # Don't fully clear it, but reduce to SUSPICIOUS range
-                    if whois_failed and benign_count >= 3:
-                        adjustment_factor = 0.35
-                    else:
-                        adjustment_factor = 0.55
-                    final_score = ml_score * adjustment_factor
-                    adjustment_reason = (
-                        f"Low rep ({reputation_score}/100) but strong benign patterns "
-                        f"({', '.join(benign_signals[:3])})"
-                    )
-                    print(f"       OVERRIDE: ML={ml_score:.3f}, Rep={reputation_score}/100 (LOW)")
-                    print(f"       But benign signals: {benign_signals}")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
                 
-                # Case 4: ML says LEGITIMATE but reputation is LOW
+                # Case 3: ML says LEGITIMATE but reputation is LOW
                 elif ml_score < 0.5 and reputation_score < 30:
                     adjustment_factor = 1.3
                     final_score = min(ml_score * adjustment_factor, 0.45)
@@ -215,7 +214,7 @@ class MLServiceFinal:
                     print(f"       CONCERN: ML={ml_score:.3f} (safe) but Reputation={reputation_score}/100 (low)")
                     print(f"     → Adjusted: {ml_score:.3f} → {final_score:.3f} (factor: {adjustment_factor})")
                 
-                # Case 5: ML and Reputation agree
+                # Case 4: ML and Reputation agree
                 else:
                     adjustment_reason = f"ML and reputation align (rep: {reputation_score}/100)"
                     print(f"      ALIGNED: ML={ml_score:.3f}, Reputation={reputation_score}/100")
@@ -276,57 +275,6 @@ class MLServiceFinal:
         if len(parts) >= 2:
             return '.'.join(parts[-2:])
         return hostname
-    
-    def _detect_benign_patterns(self, url: str, parsed) -> list:
-        """
-        Detect common benign URL patterns that the ML model misclassifies.
-        Returns a list of benign signal names found.
-        """
-        signals = []
-        query = parsed.query.lower() if parsed.query else ''
-        path = parsed.path.lower() if parsed.path else ''
-        params = set(query.split('&')) if query else set()
-        param_keys = set()
-        for p in params:
-            if '=' in p:
-                param_keys.add(p.split('=')[0])
-        
-        # UTM tracking parameters (Google Ads, Analytics, social media campaigns)
-        utm_params = {'utm_source', 'utm_medium', 'utm_content', 'utm_campaign', 'utm_term'}
-        found_utm = param_keys & utm_params
-        if len(found_utm) >= 2:
-            signals.append(f"utm_tracking({len(found_utm)} params)")
-        
-        # E-commerce path patterns (Shopify, WooCommerce, etc.)
-        ecommerce_paths = ['/products/', '/product/', '/shop/', '/cart', '/checkout',
-                           '/collections/', '/category/', '/item/', '/catalog/']
-        if any(ep in path for ep in ecommerce_paths):
-            signals.append("ecommerce_path")
-        
-        # Standard commerce query parameters
-        commerce_params = {'variant', 'currency', 'country', 'size', 'color',
-                          'qty', 'quantity', 'sku', 'ref'}
-        found_commerce = param_keys & commerce_params
-        if found_commerce:
-            signals.append(f"commerce_params({len(found_commerce)})")
-        
-        # Google/social referral IDs (srsltid, gclid, fbclid, etc.)
-        referral_params = {'srsltid', 'gclid', 'fbclid', 'msclkid', 'dclid'}
-        if param_keys & referral_params:
-            signals.append("ad_referral_id")
-        
-        # Common content paths
-        content_paths = ['/blog/', '/article/', '/news/', '/gallery/', '/post/',
-                        '/page/', '/about', '/contact', '/faq']
-        if any(cp in path for cp in content_paths):
-            signals.append("content_path")
-        
-        # Pagination / sorting
-        page_params = {'page', 'p', 'sort', 'order', 'limit', 'offset'}
-        if param_keys & page_params:
-            signals.append("pagination")
-        
-        return signals
     
     def _interpret_prediction(
         self, 

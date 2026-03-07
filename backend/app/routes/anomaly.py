@@ -10,6 +10,7 @@ Privacy-first endpoint that:
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import AnomalyCheckRequest, AnomalyCheckResponse
 from app.services.risk_scorer import RiskScorer
+import asyncio
 import time
 
 router = APIRouter(prefix="/api", tags=["Anomaly Detection"])
@@ -59,8 +60,9 @@ async def check_anomaly(request: AnomalyCheckRequest):
             )
 
         # Score the URL
+        # Run in thread pool (Isolation Forest scoring is CPU-bound)
         start = time.time()
-        risk = scorer.score(request.url)
+        risk = await asyncio.to_thread(scorer.score, request.url)
         elapsed_ms = round((time.time() - start) * 1000, 1)
 
         # Update stats
