@@ -60,7 +60,7 @@ const SAFE_DOMAINS = [
   'instagram.com', 'linkedin.com', 'github.com', 'stackoverflow.com',
   'reddit.com', 'wikipedia.org', 'amazon.com', 'ebay.com',
   'microsoft.com', 'apple.com', 'netflix.com', 'yahoo.com',
-  'leetcode.com', 'hackerrank.com', 'codepen.io', 'replit.com',
+  'leetcode.com', 'hackerrank.com',
   'twitch.tv', 'discord.com', 'slack.com', 'zoom.us',
   'pinterest.com', 'tumblr.com', 'dropbox.com', 'notion.so',
   // Office & productivity
@@ -76,9 +76,11 @@ const SAFE_DOMAINS = [
   'flipkart.com', 'myntra.com', 'walmart.com', 'target.com',
   // Social & messaging
   'whatsapp.com', 'telegram.org', 'signal.org', 'snapchat.com',
-  // Dev tools
+  // Dev tools (NOT hosting platforms — those need scanning)
   'gitlab.com', 'bitbucket.org', 'npmjs.com', 'pypi.org',
-  'docker.com', 'vercel.app', 'netlify.app', 'herokuapp.com',
+  'docker.com',
+  // NOTE: vercel.app, netlify.app, herokuapp.com, codepen.io, replit.com
+  // are INTENTIONALLY excluded — anyone can deploy phishing on them
   // News & media
   'bbc.com', 'cnn.com', 'nytimes.com', 'medium.com', 'substack.com',
   // Cloud & infra
@@ -382,7 +384,7 @@ async function checkAndBlockURL(details) {
         await cache.set(url, result);
         stats.blocked++;
         console.log('[BLOCK] ML:', url);
-        blockTab(tabId, url, mlResult.reason, 'ML_CLASSIFIER');
+        blockTab(tabId, url, mlResult.reason, 'ML_CLASSIFIER', mlResult);
         addActivity(url, 'BLOCKED', mlResult.reason);
       } else if (mlResult.status === 'SUSPICIOUS') {
         stats.warnings++;
@@ -436,7 +438,7 @@ function handleCachedResult(tabId, url, cachedResult) {
   }
 }
 
-function blockTab(tabId, url, reason, source) {
+function blockTab(tabId, url, reason, source, mlData) {
   blockedTabs.add(tabId);
 
   chrome.notifications.create({
@@ -448,6 +450,24 @@ function blockTab(tabId, url, reason, source) {
   });
 
   console.log('[BLOCK]', url, '| Source:', source, '| Reason:', reason);
+
+  // Store enriched data for the warning page
+  const feats = mlData?.features || {};
+  const blockData = {
+    type: 'block',
+    url: url,
+    reason: reason || 'Malicious site detected',
+    source: source || 'UNKNOWN',
+    confidence: mlData?.confidence || 0,
+    prediction_score: mlData?.prediction_score || 0,
+    ml_raw_score: feats.ml_raw_score || mlData?.prediction_score || 0,
+    reputation_score: feats.reputation_score ?? null,
+    reputation_data: feats.reputation_data || null,
+    transparency: feats,
+    recentBlocks: recentActivity.filter(a => a.status === 'BLOCKED' || a.status === 'ANOMALY').slice(0, 5),
+    timestamp: Date.now()
+  };
+  chrome.storage.local.set({ lastBlockData: blockData });
 
   const warningUrl = chrome.runtime.getURL('warning.html') +
     '?url=' + encodeURIComponent(url) +
@@ -470,6 +490,24 @@ function showAnomalyWarning(tabId, url, result) {
   });
 
   console.log('[ANOMALY]', url, '| Risk:', result.risk_score);
+
+  // Store enriched data for the warning page
+  const blockData = {
+    type: 'anomaly',
+    url: url,
+    reason: result.reason || 'Structural anomaly detected',
+    source: 'ANOMALY_DETECTION',
+    risk_score: result.risk_score || 0,
+    risk_level: result.risk_level || 'HIGH_ANOMALY',
+    reasons: result.reasons || [],
+    feature_deviations: result.feature_deviations || {},
+    homograph_flags: result.homograph_flags || [],
+    processing_time_ms: result.processing_time_ms || 0,
+    confidence: result.confidence || (result.risk_score / 100),
+    recentBlocks: recentActivity.filter(a => a.status === 'BLOCKED' || a.status === 'ANOMALY').slice(0, 5),
+    timestamp: Date.now()
+  };
+  chrome.storage.local.set({ lastBlockData: blockData });
 
   const warningUrl = chrome.runtime.getURL('warning.html') +
     '?url=' + encodeURIComponent(url) +
