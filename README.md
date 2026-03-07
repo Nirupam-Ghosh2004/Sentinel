@@ -22,7 +22,7 @@
 
 Phishing and malware delivery through URLs remains one of the most common attack vectors on the internet. Most detection tools either rely on static blocklists (which lag behind new threats) or send every URL you visit to a cloud API (which leaks your browsing history).
 
-Sentinel takes a different approach. It runs two independent detection engines — a supervised XGBoost classifier trained on 137K labeled URLs, and an unsupervised Isolation Forest that learns what "normal" browsing looks like and flags structural deviations. Both run locally. No URL ever leaves your machine.
+Sentinel takes a different approach. It runs two independent detection engines — a supervised XGBoost classifier trained on 280K+ labeled URLs, and an unsupervised Isolation Forest that learns what "normal" browsing looks like and flags structural deviations. Both run locally. No URL ever leaves your machine.
 
 The result is a system that catches both known phishing patterns and zero-day threats that haven't appeared in any dataset yet.
 
@@ -43,9 +43,12 @@ The result is a system that catches both known phishing patterns and zero-day th
 - **Homograph attack detection**: Identifies Cyrillic/Greek lookalike characters, punycode domains, and brand impersonation (e.g., `paypa1-secure.evil.com`).
 - **Explainable risk scores**: Instead of a binary "safe/malicious", the system returns a 0-100 risk score with z-score deviation reports showing exactly which features triggered the alert.
 - **Privacy-first architecture**: All processing happens locally. URLs are discarded after feature extraction. No browsing history stored. No external API calls.
+- **Hosting platform detection**: Recognizes 27+ free hosting services (Vercel, Netlify, Weebly, Wix, etc.) and trusts ML predictions instead of letting the hosting provider's reputation mask phishing content.
+- **Forensics-themed warning page**: A 3-column terminal-style block page with real-time threat gauge, feature deviation bars, model confidence scores, domain intelligence panel, and recent blocks log.
 - **User override for anomalies**: Anomalies show a warning page with "Proceed Anyway" — the system informs rather than dictates.
 - **Real-time interception**: The browser extension intercepts navigation requests before the page loads, not after.
-- **Domain reputation scoring**: WHOIS age, SSL certificate validation, DNS record checks, registrar analysis.
+- **Domain reputation scoring**: WHOIS age, SSL certificate validation, DNS record checks, registrar analysis — with intelligent confidence adjustment.
+- **Non-blocking async I/O**: All ML inference and reputation lookups run in thread pools, keeping the API responsive under concurrent load.
 - **Intelligent caching**: Results cached for 1 hour per URL to avoid redundant processing.
 
 ---
@@ -63,7 +66,7 @@ Browser Extension (Chrome Manifest V3)
 │   └── Flags structural deviations from baseline
 │   └── Returns risk score + feature deviations
 ├── ML classifier ───── XGBoost via local backend API
-│   └── Trained on 137K labeled URLs (50/50 split)
+│   └── Trained on 280K+ labeled URLs (with path/subdomain augmentation)
 │   └── 50 engineered features per URL
 │   └── Combined with reputation validation
 └── Decision
@@ -85,7 +88,7 @@ The anomaly engine and ML classifier run independently and do not veto each othe
 | Backend API | Python 3.10+, FastAPI, Uvicorn |
 | ML Classification | XGBoost, scikit-learn, pandas, numpy |
 | Anomaly Detection | Isolation Forest (scikit-learn), StandardScaler |
-| Feature Extraction | Custom 28-feature extractor (entropy, structural, deception indicators) |
+| Feature Extraction | Custom 28-feature extractor (anomaly) + 50-feature extractor (XGBoost) |
 | Domain Reputation | python-whois, dnspython, ssl (stdlib) |
 | Serialization | joblib |
 
@@ -95,11 +98,18 @@ The anomaly engine and ML classifier run independently and do not veto each othe
 
 **Training phase (offline):**
 
-1. Legitimate URLs are loaded from the training dataset (~68K domains).
+*Anomaly model (Isolation Forest):*
+1. Legitimate URLs are loaded from the Tranco top 1M dataset (~68K domains).
 2. Bare domains are augmented with realistic paths and query parameters (120+ templates) to prevent the model from learning that "having a path = suspicious".
 3. 28 structural features are extracted per URL (entropy, character ratios, path depth, subdomain count, etc.).
 4. An Isolation Forest model is trained only on these benign samples. It learns the statistical distribution of normal browsing.
 5. Baseline statistics (mean, std, percentiles) are saved for each feature to enable explainable z-score deviations.
+
+*ML classifier (XGBoost):*
+1. Legitimate URLs (Tranco) and malicious URLs (PhishTank + URLhaus) are loaded.
+2. Legitimate bare domains are augmented with realistic paths (`/blog/article`, `/products/item`) and subdomain variants (`www.`, `docs.`, `mail.`) to fix dataset bias.
+3. 50 features are extracted per URL (domain analysis, path analysis, protocol, structural indicators, brand impersonation signals).
+4. An XGBoost classifier is trained with `scale_pos_weight=1.5`, tuned to minimize false positives on legitimate URLs with paths.
 
 **Detection phase (real-time):**
 
@@ -200,7 +210,9 @@ Sentinel/
 ├── ml-models/                      # Training pipeline
 │   ├── src/
 │   │   ├── train_anomaly_model.py  # Isolation Forest training
-│   │   └── train_xgboost_v2.py     # XGBoost training
+│   │   ├── train_xgboost_v3.py     # XGBoost training (with augmentation)
+│   │   ├── feature_extractor_v2.py # 50-feature URL extractor
+│   │   └── feature_extractor.py    # Legacy v1 extractor
 │   └── trained_models/
 ├── datasets/                       # Training data
 │   ├── raw/                        # Downloaded from PhishTank, OpenPhish, etc.
@@ -274,14 +286,17 @@ The engine intentionally doesn't try to catch everything. At the SUSPICIOUS thre
 
 | Metric | Value |
 |--------|-------|
-| Accuracy | 99.89% |
-| Precision | 99.98% |
-| Recall | 99.81% |
-| False positive rate | 0.02% (2 in 10,296) |
-| Training dataset | 137,268 labeled URLs (50/50 split) |
+| Accuracy | 99.18% |
+| Precision | 99.24% |
+| Recall | 99.53% |
+| False positive rate | 0.38% |
+| Training dataset | 280K+ URLs (augmented legitimate + PhishTank/URLhaus) |
 | Features per URL | 50 |
+| Data augmentation | Path + subdomain augmentation for legitimate URLs |
 
-**A note on these numbers**: The test accuracy is high because the dataset is relatively easy to classify. Most legitimate URLs are bare domains (`socialdeal.nl`, `labnol.org`), while most malicious URLs have obvious structural tells (IP addresses, random subdomains, free hosting platforms). The XGBoost classifier alone would struggle against phishing sites that use clean-looking domains. This is exactly what the anomaly engine compensates for.
+**Data augmentation**: The raw Tranco dataset contains bare domains (`google.com`), while malicious URLs always have paths (`/login/verify`). Without augmentation, the model learns `has_path=1 → malicious`. We augment legitimate URLs with realistic paths (120+ templates) and subdomain variants (`www.`, `docs.`, `mail.`, etc.) to eliminate this bias.
+
+**Hosting platform detection**: Phishers deploy on free hosting services (Vercel, Weebly, Wix, Netlify, etc.) to inherit the platform's domain reputation. The system detects 27+ hosting platforms and trusts the ML model's judgment instead of allowing the reputation override to mask malicious content.
 
 ---
 
