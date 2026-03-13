@@ -44,6 +44,9 @@
       <section class="sidebar-section">
         <h3 class="section-title">
           <span class="material-symbols-outlined">analytics</span> Risk Triggers
+          <button class="fi-btn" id="featureImportanceBtn" title="Feature Importance">
+            <span class="material-symbols-outlined">radar</span>
+          </button>
         </h3>
         <div class="triggers-list" id="triggersList">
           <div class="trigger-card">
@@ -136,21 +139,67 @@
       </div>
 
       <!-- Why Blocked -->
-      <section class="explain-section">
-        <div class="explain-header">
+      <section class="explain-section" id="explainSection">
+        <div class="explain-header" id="explainToggle">
           <h3 class="explain-header-title">
             <span class="material-symbols-outlined">help_outline</span> Why was this blocked?
           </h3>
-          <span class="material-symbols-outlined explain-toggle">expand_more</span>
+          <span class="material-symbols-outlined explain-toggle-icon" id="explainChevron">expand_more</span>
         </div>
-        <div class="explain-body">
-          <p class="explain-text" id="explainText">
+
+        <!-- Summary (always visible) -->
+        <div class="explain-summary" id="explainSummary">
+          <p class="explain-summary-text" id="explainText">
             This website has been identified as potentially dangerous and was blocked for your safety.
           </p>
-          <!-- Blocked URL shown here -->
-          <div class="blocked-url-box" id="blockedUrlBox">
-            <span class="url-label">TARGET_URL:</span>
-            <span class="url-text" id="blockedUrl">Loading...</span>
+        </div>
+
+        <!-- Expanded details (collapsed by default) -->
+        <div class="explain-details" id="explainDetails">
+
+          <!-- Detection Signals -->
+          <div class="explain-row">
+            <div class="explain-row-header">
+              <span class="material-symbols-outlined explain-row-icon">sensors</span>
+              <span class="explain-row-label">Detection Signals</span>
+            </div>
+            <div class="explain-row-value" id="explainSignals">—</div>
+          </div>
+
+          <!-- Target URL -->
+          <div class="explain-row">
+            <div class="explain-row-header">
+              <span class="material-symbols-outlined explain-row-icon">link</span>
+              <span class="explain-row-label">Target URL</span>
+            </div>
+            <div class="explain-row-value explain-url-val" id="explainTargetUrl">—</div>
+          </div>
+
+          <!-- Model Decision -->
+          <div class="explain-row">
+            <div class="explain-row-header">
+              <span class="material-symbols-outlined explain-row-icon">psychology</span>
+              <span class="explain-row-label">Model Decision</span>
+            </div>
+            <div class="explain-row-value" id="explainModelDecision">—</div>
+          </div>
+
+          <!-- Risk Interpretation -->
+          <div class="explain-row">
+            <div class="explain-row-header">
+              <span class="material-symbols-outlined explain-row-icon">assessment</span>
+              <span class="explain-row-label">Risk Interpretation</span>
+            </div>
+            <div class="explain-row-value" id="explainRiskInterp">—</div>
+          </div>
+
+          <!-- Recommended Action -->
+          <div class="explain-row explain-row-action">
+            <div class="explain-row-header">
+              <span class="material-symbols-outlined explain-row-icon">verified_user</span>
+              <span class="explain-row-label">Recommended Action</span>
+            </div>
+            <div class="explain-row-value" id="explainAction">—</div>
           </div>
         </div>
       </section>
@@ -228,6 +277,39 @@
         <span class="node-value" id="nodeId">SG-WAF-001-A</span>
       </div>
     </footer>
+  </div>
+
+  <!-- ===== FEATURE IMPORTANCE MODAL ===== -->
+  <div class="fi-modal-overlay" id="fiModalOverlay">
+    <div class="fi-modal">
+      <div class="fi-modal-header">
+        <div class="fi-modal-title-wrap">
+          <span class="material-symbols-outlined fi-modal-icon">radar</span>
+          <h2 class="fi-modal-title"><span class="fi-modal-sep"></span> Feature Contribution Analysis</h2>
+        </div>
+        <div class="fi-modal-actions">
+          <button class="fi-toggle-btn" id="fiToggleNorm" title="Toggle percentage view">
+            <span class="material-symbols-outlined">percent</span>
+          </button>
+          <button class="fi-toggle-btn" id="fiExportBtn" title="Export as PNG">
+            <span class="material-symbols-outlined">download</span>
+          </button>
+          <button class="fi-close-btn" id="fiCloseBtn">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="fi-modal-body">
+        <div class="fi-chart-wrap">
+          <canvas id="radarCanvas" width="400" height="400"></canvas>
+        </div>
+        <div class="fi-legend" id="fiLegend"></div>
+        <p class="fi-explain">
+          Feature importance shows which structural properties of the URL most influenced the
+          anomaly detection model. Higher values indicate stronger contribution to the anomaly score.
+        </p>
+      </div>
+    </div>
   </div>
 
   <script src="warning.js"></script>

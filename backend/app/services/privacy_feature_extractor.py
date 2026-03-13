@@ -185,5 +185,5 @@ class PrivacyFeatureExtractor:
         """Check if a brand name appears in subdomains (not the root domain)."""
         if len(host_parts) <= 2:
             return False
-        subdomains = '.'.join(host_parts[:-2]).lower()
+        subdomains = '.'.join(host_parts[:-2]).lower()  # type: ignore[index]
         return any(brand in subdomains for brand in self._BRANDS)

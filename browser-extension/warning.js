@@ -4,6 +4,29 @@
 
 console.log('Warning.js v4.2 — Forensics Terminal loaded');
 
+// Shared API cache — prevents redundant calls to the same endpoint
+const _apiCache = {};
+function getAnomaly(url) {
+  if (!_apiCache['anomaly_' + url]) {
+    _apiCache['anomaly_' + url] = fetch('http://localhost:8000/api/anomaly', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    }).then(r => r.json()).catch(() => null);
+  }
+  return _apiCache['anomaly_' + url];
+}
+function getML(url) {
+  if (!_apiCache['ml_' + url]) {
+    _apiCache['ml_' + url] = fetch('http://localhost:8000/api/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    }).then(r => r.json()).catch(() => null);
+  }
+  return _apiCache['ml_' + url];
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   // Basic data from URL params
   const urlParams = new URLSearchParams(window.location.search);
@@ -45,14 +68,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Log toggle
   setupLogToggle();
+
+  // Explain section toggle + populate
+  setupExplainToggle();
+  if (blockedUrl) populateExplainSection(blockedUrl, isAnomaly, riskScore, blockReason);
 });
 
 // ===== BASIC UI =====
 function setBasicUI(blockedUrl, blockReason, source, isAnomaly, riskScore, reasons) {
-  // Blocked URL
-  const urlEl = document.getElementById('blockedUrl');
-  urlEl.textContent = blockedUrl ? decodeURIComponent(blockedUrl) : 'Unknown URL';
-
   // Alert title
   const title = document.getElementById('alertTitle');
   title.textContent = isAnomaly
@@ -67,15 +90,10 @@ function setBasicUI(blockedUrl, blockReason, source, isAnomaly, riskScore, reaso
   const tag = document.getElementById('alertTag');
   tag.textContent = isAnomaly ? 'Anomaly Detected' : 'Critical Threat Detected';
 
-  // Explanation
+  // Explanation — set a brief placeholder; populateExplainSection() fills real data
   const explainText = document.getElementById('explainText');
-  if (isAnomaly) {
-    explainText.innerHTML =
-      'Subsystem analysis identified multiple <span class="neon-text">high-confidence</span> ' +
-      'structural deviations. The URL pattern exhibits statistical anomalies across multiple feature ' +
-      'dimensions, suggesting potential deceptive intent.';
-  } else if (blockReason) {
-    explainText.textContent = decodeURIComponent(blockReason);
+  if (explainText) {
+    explainText.textContent = 'Analyzing threat data…';
   }
 
   // Risk triggers from URL params
@@ -117,11 +135,18 @@ function populateTriggers(reasons) {
     const iconName = i >= 2 ? 'info' : 'warning';
     const iconOpacity = i >= 2 ? 'style="opacity:0.6"' : '';
 
-    // Extract short label and detail
-    const parts = reason.split(':');
-    const label = parts.length > 1 ? parts[0].trim() : reason.substring(0, 40);
-    const detail = parts.length > 1 ? parts.slice(1).join(':').trim() : reason;
-
+    // Split by colon if present
+    const colonIndex = reason.indexOf(':');
+    let label, detail;
+    
+    if (colonIndex !== -1) {
+      label = reason.substring(0, colonIndex).trim();
+      detail = reason.substring(colonIndex + 1).trim();
+    } else {
+      // No colon: use full text for both
+      label = reason;
+      detail = reason;
+    }
     card.innerHTML = `
       <div class="trigger-header">
         <span class="material-symbols-outlined trigger-icon" ${iconOpacity}>${iconName}</span>
@@ -215,11 +240,23 @@ function populateModelScores(data, isAnomaly) {
   const anomalyFill = document.getElementById('anomalyScoreFill');
 
   if (isAnomaly && data.risk_score) {
+    // Anomaly block — use the stored risk_score directly
     anomalyVal.textContent = data.risk_score + '%';
     setTimeout(() => { anomalyFill.style.width = data.risk_score + '%'; }, 200);
-  } else if (data.confidence) {
-    anomalyVal.textContent = Math.round(data.confidence * 100) + '%';
-    setTimeout(() => { anomalyFill.style.width = Math.round(data.confidence * 100) + '%'; }, 200);
+  } else {
+    // ML block — fetch the REAL anomaly score from the cache
+    const urlParams = new URLSearchParams(window.location.search);
+    const blockedUrl = urlParams.get('url');
+    if (blockedUrl) {
+      anomalyVal.textContent = '...';
+      getAnomaly(blockedUrl)
+      .then(result => {
+        if (!result) { anomalyVal.textContent = '--'; return; }
+        const realScore = result.risk_score || 0;
+        anomalyVal.textContent = realScore + '%';
+        setTimeout(() => { anomalyFill.style.width = realScore + '%'; }, 200);
+      });
+    }
   }
 
   // ML / XGBoost score
@@ -432,3 +469,565 @@ function setupLogToggle() {
     icon.textContent = isExpanded ? 'keyboard_double_arrow_up' : 'keyboard_double_arrow_down';
   });
 }
+
+// ===== EXPLAIN TOGGLE =====
+function setupExplainToggle() {
+  const header = document.getElementById('explainToggle');
+  const section = document.getElementById('explainSection');
+  if (!header || !section) return;
+
+  header.addEventListener('click', () => {
+    section.classList.toggle('expanded');
+  });
+}
+
+// ===== POPULATE EXPLAIN SECTION =====
+function populateExplainSection(blockedUrl, isAnomaly, riskScore, blockReason) {
+  const url = decodeURIComponent(blockedUrl);
+
+  // Target URL — set immediately
+  const urlEl = document.getElementById('explainTargetUrl');
+  if (urlEl) urlEl.textContent = url;
+
+  // Fetch both models' results via shared cache
+  const anomalyReq = getAnomaly(url);
+  const mlReq = getML(url);
+
+  Promise.all([anomalyReq, mlReq]).then(([anomaly, ml]) => {
+    // --- Explanation (summary text) ---
+    const summaryEl = document.getElementById('explainText');
+    if (summaryEl) {
+      if (isAnomaly && anomaly) {
+        const mlOverride = ml && ml.status === 'LEGITIMATE';
+        if (mlOverride) {
+          summaryEl.innerHTML =
+            `Sentinel's Isolation Forest flagged <span class="neon-text">${anomaly.reasons?.length || 0} structural anomalies</span> ` +
+            `(risk score: <span class="neon-text">${anomaly.risk_score}/100</span>), but the XGBoost classifier ` +
+            `identifies this URL as <span class="neon-text">LEGITIMATE</span> with ${Math.round((ml.confidence || 0) * 100)}% confidence. ` +
+            `The anomaly may be a false positive due to unusual URL structure.`;
+        } else {
+          summaryEl.innerHTML =
+            `Sentinel's Isolation Forest detected <span class="neon-text">${anomaly.reasons?.length || 0} structural anomalies</span> ` +
+            `in this URL. The risk score of <span class="neon-text">${anomaly.risk_score}/100</span> exceeds the blocking threshold. ` +
+            `This URL deviates significantly from known legitimate URL patterns.`;
+        }
+      } else if (ml) {
+        const conf = Math.round((ml.confidence || 0) * 100);
+        summaryEl.innerHTML =
+          `Sentinel's XGBoost classifier identified this URL as <span class="neon-text">${ml.status}</span> ` +
+          `with <span class="neon-text">${conf}% confidence</span>. ` +
+          (ml.reason || 'Multiple threat indicators were detected.');
+      }
+    }
+
+    // --- Detection Signals (deduplicated) ---
+    const signalsEl = document.getElementById('explainSignals');
+    if (signalsEl) {
+      const seen = new Set();
+      const signals = [];
+
+      // Helper to normalize text for deduplication
+      const normalize = (s) => s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      if (anomaly && anomaly.reasons) {
+        anomaly.reasons.forEach(r => {
+          const key = normalize(r);
+          if (!seen.has(key)) {
+            seen.add(key);
+            signals.push(`⚡ ${r}`);
+          }
+        });
+      }
+      if (anomaly && anomaly.homograph_flags && anomaly.homograph_flags.length > 0) {
+        anomaly.homograph_flags.forEach(h => {
+          const key = normalize(h);
+          if (!seen.has(key)) {
+            seen.add(key);
+            signals.push(`⚡ Homograph: ${h}`);
+          }
+        });
+      }
+      if (ml && ml.reason) {
+        ml.reason.split(';').forEach(r => {
+          const trimmed = r.trim();
+          const key = normalize(trimmed);
+          if (trimmed && !seen.has(key)) {
+            seen.add(key);
+            signals.push(`${trimmed}`);
+          }
+        });
+      }
+
+      // Show ML verdict as a signal too
+      if (ml && ml.status === 'LEGITIMATE') {
+        signals.push(`✅ ML model classified as legitimate (${Math.round((ml.confidence || 0) * 100)}% confidence)`);
+      }
+
+      signalsEl.innerHTML = signals.length > 0
+        ? signals.map(s => `<div style="margin-bottom:4px">${s}</div>`).join('')
+        : 'No specific signals identified';
+    }
+
+    // --- Model Decision ---
+    const decisionEl = document.getElementById('explainModelDecision');
+    if (decisionEl) {
+      let parts = [];
+      if (anomaly) {
+        parts.push(
+          `<div style="margin-bottom:6px"><strong style="color:var(--neon)">Isolation Forest:</strong> ` +
+          `${anomaly.risk_level || 'UNKNOWN'} — risk score ${anomaly.risk_score || 0}/100</div>`
+        );
+      }
+      if (ml) {
+        const mlConf = Math.round((ml.confidence || 0) * 100);
+        parts.push(
+          `<div><strong style="color:var(--neon)">XGBoost Classifier:</strong> ` +
+          `${ml.status || 'UNKNOWN'} — ${mlConf}% confidence (raw score: ${(ml.prediction_score || 0).toFixed(4)})</div>`
+        );
+      }
+      decisionEl.innerHTML = parts.join('') || 'Models unavailable';
+    }
+
+    // --- Risk Interpretation ---
+    const interpEl = document.getElementById('explainRiskInterp');
+    if (interpEl) {
+      const aScore = anomaly?.risk_score || 0;
+      const mlConf = ml ? Math.round((ml.confidence || 0) * 100) : 0;
+      const mlStatus = ml?.status || '';
+
+      let interp = '';
+      if (aScore >= 70 && mlStatus === 'MALICIOUS') {
+        interp = 'Both engines agree: this URL is highly dangerous. The structural pattern is abnormal AND matches known malicious signatures. Extremely high confidence in this classification.';
+      } else if (mlStatus === 'MALICIOUS' && aScore < 50) {
+        interp = `The ML classifier flagged this URL (${mlConf}% confidence) based on learned phishing patterns, but the anomaly engine found it structurally normal (risk: ${aScore}/100). This suggests pattern-based phishing using a clean-looking domain.`;
+      } else if (aScore >= 50 && mlStatus === 'LEGITIMATE') {
+        interp = `The anomaly engine flagged unusual URL structure (risk: ${aScore}/100), but the ML classifier — trained on 280K+ URLs — identifies this as LEGITIMATE with ${mlConf}% confidence. The structural deviation is likely due to long product paths, query parameters, or regional domain patterns. This is most likely a false positive.`;
+      } else if (aScore >= 70 && mlStatus !== 'MALICIOUS') {
+        interp = `The anomaly engine detected significant structural deviations (risk: ${aScore}/100), but the ML classifier did not match known malicious patterns. This may be a zero-day threat or an unusual but legitimate URL.`;
+      } else if (mlStatus === 'SUSPICIOUS') {
+        interp = `The URL shows some concerning patterns but does not fully match known malicious signatures. Exercise caution.`;
+      } else {
+        interp = blockReason ? decodeURIComponent(blockReason) : 'URL was flagged based on combined analysis from multiple detection engines.';
+      }
+      interpEl.textContent = interp;
+    }
+
+    // --- Recommended Action ---
+    const actionEl = document.getElementById('explainAction');
+    if (actionEl) {
+      const mlStatus = ml?.status || '';
+      const mlConf = ml ? Math.round((ml.confidence || 0) * 100) : 0;
+      const aScore = anomaly?.risk_score || 0;
+
+      if (mlStatus === 'MALICIOUS' && aScore >= 70) {
+        actionEl.textContent = 'Do NOT proceed. Navigate away immediately. If you received this link via email or message, report it as phishing.';
+      } else if (mlStatus === 'MALICIOUS') {
+        actionEl.textContent = 'Do NOT proceed. The ML model has identified this URL as malicious with high confidence.';
+      } else if (aScore >= 50 && mlStatus === 'LEGITIMATE' && mlConf >= 70) {
+        actionEl.textContent = `This URL is likely safe. The ML model classifies it as legitimate with ${mlConf}% confidence. The anomaly flag is likely a false positive caused by unusual URL structure (long paths, product IDs, etc.). You may proceed.`;
+      } else if (aScore >= 70) {
+        actionEl.textContent = 'Proceed with caution. The URL has unusual structural patterns. Verify the domain independently before entering credentials.';
+      } else if (mlStatus === 'SUSPICIOUS' || aScore >= 50) {
+        actionEl.textContent = 'Proceed with caution. Verify the URL independently before entering any credentials or personal information.';
+      } else {
+        actionEl.textContent = 'This URL was flagged by automated heuristics. If you trust the source, you may proceed.';
+      }
+    }
+  });
+}
+
+// ===== FEATURE IMPORTANCE RADAR CHART =====
+(function initFeatureImportance() {
+  const openBtn = document.getElementById('featureImportanceBtn');
+  const overlay = document.getElementById('fiModalOverlay');
+  const closeBtn = document.getElementById('fiCloseBtn');
+  const toggleNorm = document.getElementById('fiToggleNorm');
+  const exportBtn = document.getElementById('fiExportBtn');
+
+  if (!openBtn || !overlay) return;
+
+  let isNormalized = false;
+  let radarData = null;
+  let animProgress = 0;
+  let animFrame = null;
+
+  // Readable names for ML features
+  const FEATURE_LABELS = {
+    subdomain_count: 'Subdomain Count',
+    domain_length: 'Domain Length',
+    entropy: 'Entropy',
+    brand_without_official_tld: 'Brand Impersonation',
+    num_hyphens: 'Hyphen Count',
+    has_path: 'Has Path',
+    path_length: 'Path Length',
+    url_length: 'URL Length',
+    digit_ratio: 'Digit Ratio',
+    num_dots: 'Dot Count',
+    is_ip_address: 'IP Address',
+    is_suspicious_tld: 'Suspicious TLD',
+    has_at_symbol: '@ Symbol',
+    num_at: '@ Count',
+    long_path: 'Long Path',
+    high_entropy: 'High Entropy',
+    is_https: 'HTTPS',
+    special_char_ratio: 'Special Chars',
+    num_params: 'URL Params',
+    path_depth: 'Path Depth'
+  };
+
+  // Features we care about for the radar (most meaningful for risk)
+  const IMPORTANT_FEATURES = [
+    'subdomain_count', 'domain_length', 'entropy',
+    'brand_without_official_tld', 'num_hyphens', 'path_length',
+    'digit_ratio', 'num_dots', 'is_ip_address', 'is_suspicious_tld',
+    'has_at_symbol', 'long_path', 'high_entropy', 'special_char_ratio'
+  ];
+
+  function getFeatureData() {
+    // Get the blocked URL from the page's URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const blockedUrl = urlParams.get('url');
+
+    if (!blockedUrl) return Promise.resolve(buildFallbackData());
+
+    // Use the shared cache for the anomaly API call
+    return getAnomaly(blockedUrl)
+    .then(result => {
+      if (!result) return buildFallbackFromStorage();
+      const items = [];
+
+      // Extract feature_deviations from the anomaly response
+      if (result.feature_deviations && typeof result.feature_deviations === 'object') {
+        for (const [key, info] of Object.entries(result.feature_deviations)) {
+          const zScore = typeof info === 'object' ? Math.abs(info.z_score || 0) : Math.abs(info || 0);
+          if (zScore > 0) {
+            items.push({
+              name: FEATURE_LABELS[key] || formatFeatureName(key),
+              raw: parseFloat(zScore.toFixed(2))
+            });
+          }
+        }
+      }
+
+      if (items.length < 3) return buildFallbackFromStorage();
+
+      // Sort by z-score descending, take top 8
+      items.sort((a, b) => b.raw - a.raw);
+      const top = items.slice(0, 8);
+      const maxVal = Math.max(...top.map(i => i.raw), 1);
+      return top.map(i => ({
+        name: i.name,
+        value: i.raw / maxVal,
+        raw: i.raw
+      }));
+    })
+    .catch(() => buildFallbackFromStorage());
+  }
+
+  // Fallback: try chrome.storage transparency features
+  function buildFallbackFromStorage() {
+    return new Promise((resolve) => {
+      if (typeof chrome === 'undefined' || !chrome.storage) {
+        resolve(buildFallbackData());
+        return;
+      }
+      chrome.storage.local.get('lastBlockData', (result) => {
+        const data = result.lastBlockData;
+        if (!data || !data.transparency) { resolve(buildFallbackData()); return; }
+
+        const items = [];
+        for (const key of IMPORTANT_FEATURES) {
+          const val = data.transparency[key];
+          if (val !== undefined && val !== null && val > 0) {
+            items.push({
+              name: FEATURE_LABELS[key] || formatFeatureName(key),
+              raw: val
+            });
+          }
+        }
+
+        if (items.length < 3) { resolve(buildFallbackData()); return; }
+
+        items.sort((a, b) => b.raw - a.raw);
+        const top = items.slice(0, 8);
+        const maxVal = Math.max(...top.map(i => i.raw), 1);
+        resolve(top.map(i => ({
+          name: i.name,
+          value: i.raw / maxVal,
+          raw: i.raw
+        })));
+      });
+    });
+  }
+
+  function formatFeatureName(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function buildFallbackData() {
+    const defaults = [
+      { name: 'Subdomain Count', raw: 0.21 },
+      { name: 'Domain Length', raw: 0.17 },
+      { name: 'Entropy', raw: 0.15 },
+      { name: 'Brand Impersonation', raw: 0.14 },
+      { name: 'Hyphen Count', raw: 0.11 }
+    ];
+    const maxVal = Math.max(...defaults.map(f => f.raw));
+    return defaults.map(f => ({ name: f.name, value: f.raw / maxVal, raw: f.raw }));
+  }
+
+  function drawRadar(canvas, data, progress) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const W = 400;
+    const H = 400;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const maxR = 150;
+    const n = data.length;
+    const angleStep = (Math.PI * 2) / n;
+    const startAngle = -Math.PI / 2;
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid rings
+    const rings = 5;
+    for (let r = 1; r <= rings; r++) {
+      const radius = (maxR / rings) * r;
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const angle = startAngle + angleStep * i;
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(0, 255, 0, ${r === rings ? 0.15 : 0.06})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Axis lines
+    for (let i = 0; i < n; i++) {
+      const angle = startAngle + angleStep * i;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR);
+      ctx.strokeStyle = 'rgba(0, 255, 0, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Data polygon (animated)
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const idx = i % n;
+      const angle = startAngle + angleStep * idx;
+      const val = data[idx].value * progress;
+      const r = val * maxR;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.12)';
+    ctx.fill();
+    ctx.strokeStyle = '#00FF00';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00FF00';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Data points
+    for (let i = 0; i < n; i++) {
+      const angle = startAngle + angleStep * i;
+      const val = data[i].value * progress;
+      const r = val * maxR;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#00FF00';
+      ctx.shadowColor = '#00FF00';
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // Labels
+    ctx.font = '700 10px "Space Mono", monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < n; i++) {
+      const angle = startAngle + angleStep * i;
+      const labelR = maxR + 24;
+      let x = cx + Math.cos(angle) * labelR;
+      let y = cy + Math.sin(angle) * labelR;
+
+      // Adjust alignment based on position
+      if (Math.cos(angle) > 0.3) ctx.textAlign = 'left';
+      else if (Math.cos(angle) < -0.3) ctx.textAlign = 'right';
+      else ctx.textAlign = 'center';
+
+      ctx.fillStyle = '#777777';
+      ctx.fillText(data[i].name, x, y);
+
+      // Value below label
+      const valText = isNormalized
+        ? Math.round(data[i].value * 100) + '%'
+        : '+' + data[i].raw.toFixed(2);
+      ctx.fillStyle = '#00FF00';
+      ctx.font = '700 9px "Space Mono", monospace';
+      ctx.fillText(valText, x, y + 13);
+      ctx.font = '700 10px "Space Mono", monospace';
+    }
+
+    ctx.textAlign = 'left';
+  }
+
+  function buildLegend(data) {
+    const legend = document.getElementById('fiLegend');
+    if (!legend) return;
+    legend.innerHTML = '';
+    data.forEach(d => {
+      const item = document.createElement('div');
+      item.className = 'fi-legend-item';
+      const valText = isNormalized
+        ? Math.round(d.value * 100) + '%'
+        : '+' + d.raw.toFixed(2);
+      item.innerHTML = `
+        <span class="fi-legend-dot"></span>
+        <span>${d.name}</span>
+        <span class="fi-legend-val">${valText}</span>
+      `;
+      legend.appendChild(item);
+    });
+  }
+
+  async function openModal() {
+    radarData = await getFeatureData();
+    overlay.classList.add('active');
+    buildLegend(radarData);
+
+    // Animate radar drawing
+    animProgress = 0;
+    if (animFrame) cancelAnimationFrame(animFrame);
+
+    const canvas = document.getElementById('radarCanvas');
+    const duration = 800;
+    const start = performance.now();
+
+    function animate(now) {
+      const elapsed = now - start;
+      animProgress = Math.min(1, elapsed / duration);
+      // Ease out cubic
+      const t = 1 - Math.pow(1 - animProgress, 3);
+      drawRadar(canvas, radarData, t);
+      if (animProgress < 1) {
+        animFrame = requestAnimationFrame(animate);
+      }
+    }
+    animFrame = requestAnimationFrame(animate);
+  }
+
+  function closeModal() {
+    overlay.classList.remove('active');
+    if (animFrame) cancelAnimationFrame(animFrame);
+  }
+
+  // Event listeners
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal();
+  });
+
+  // Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('active')) closeModal();
+  });
+
+  // Percentage toggle
+  toggleNorm.addEventListener('click', () => {
+    isNormalized = !isNormalized;
+    toggleNorm.classList.toggle('active', isNormalized);
+    if (radarData) {
+      const canvas = document.getElementById('radarCanvas');
+      drawRadar(canvas, radarData, 1);
+      buildLegend(radarData);
+    }
+  });
+
+  // Export as PNG
+  exportBtn.addEventListener('click', () => {
+    const canvas = document.getElementById('radarCanvas');
+    // Redraw on a temp canvas with black background for export
+    const expCanvas = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    expCanvas.width = canvas.width;
+    expCanvas.height = canvas.height;
+    const expCtx = expCanvas.getContext('2d');
+    expCtx.fillStyle = '#050505';
+    expCtx.fillRect(0, 0, expCanvas.width, expCanvas.height);
+    expCtx.drawImage(canvas, 0, 0);
+
+    const link = document.createElement('a');
+    link.download = 'sentinel-feature-importance.png';
+    link.href = expCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // Canvas hover tooltip
+  const canvas = document.getElementById('radarCanvas');
+  const tooltip = document.createElement('div');
+  tooltip.style.cssText = `
+    position: fixed; padding: 6px 10px; background: rgba(0,0,0,0.9);
+    border: 1px solid rgba(0,255,0,0.3); color: #00FF00;
+    font: 700 10px 'Space Mono', monospace; pointer-events: none;
+    z-index: 200; display: none; white-space: nowrap;
+  `;
+  document.body.appendChild(tooltip);
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!radarData) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const cx = 200, cy = 200, maxR = 150;
+    const n = radarData.length;
+    const startAngle = -Math.PI / 2;
+    const angleStep = (Math.PI * 2) / n;
+
+    let hit = null;
+    for (let i = 0; i < n; i++) {
+      const angle = startAngle + angleStep * i;
+      const r = radarData[i].value * maxR;
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      const dist = Math.hypot(mx - px, my - py);
+      if (dist < 12) { hit = radarData[i]; break; }
+    }
+
+    if (hit) {
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 12) + 'px';
+      tooltip.style.top = (e.clientY - 8) + 'px';
+      const val = isNormalized ? Math.round(hit.value * 100) + '%' : '+' + hit.raw.toFixed(2);
+      tooltip.textContent = `${hit.name}: ${val}`;
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+  });
+})();

@@ -4,7 +4,7 @@ ML Model Service - Handles predictions (Updated with Smart Whitelisting)
 import joblib
 import numpy as np
 import pandas as pd
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 import os
 from urllib.parse import urlparse
 from app.config import get_settings
@@ -15,29 +15,39 @@ class MLService:
     
     def __init__(self):
         self.settings = get_settings()
-        self.model = None
-        self.feature_names = None
+        self.model: Optional[object] = None
+        self.feature_names: Optional[list] = None
         self.extractor = URLFeatureExtractorV2()
         
         # Whitelist of known safe domains (exact match or endswith)
         self.safe_domains = {
-            'google.com', 'youtube.com', 'facebook.com', 'twitter.com',
+            'google.com', 'google.co.in', 'google.co.uk', 'google.de',
+            'google.co.jp', 'google.com.br', 'google.com.au',
+            'youtube.com', 'facebook.com', 'twitter.com', 'x.com',
             'instagram.com', 'linkedin.com', 'github.com', 'stackoverflow.com',
-            'reddit.com', 'wikipedia.org', 'amazon.com', 'ebay.com',
-            'microsoft.com', 'apple.com', 'netflix.com', 'yahoo.com',
+            'reddit.com', 'wikipedia.org',
+            'amazon.com', 'amazon.in', 'amazon.co.uk', 'amazon.de',
+            'amazon.co.jp', 'amazon.fr', 'amazon.ca', 'amazon.com.au',
+            'amazon.es', 'amazon.it', 'amazon.nl', 'amazon.sg',
+            'ebay.com', 'microsoft.com', 'apple.com', 'netflix.com',
+            'yahoo.com', 'yahoo.co.jp', 'yahoo.co.in',
             'bing.com', 'duckduckgo.com', 'cloudflare.com', 'mozilla.org',
             'twitch.tv', 'discord.com', 'slack.com', 'zoom.us',
-            'dropbox.com', 'gdrive.google.com', 'docs.google.com',
-            'leetcode.com', 'hackerrank.com', 'codepen.io', 'replit.com'
+            'dropbox.com', 'docs.google.com',
+            'leetcode.com', 'hackerrank.com',
         }
         
         # Domains that legitimately have long URLs (with query params)
         self.long_url_ok_domains = {
-            'google.com', 'youtube.com', 'amazon.com', 'ebay.com',
-            'github.com', 'stackoverflow.com', 'reddit.com',
-            'leetcode.com', 'hackerrank.com', 'twitter.com',
+            'google.com', 'google.co.in', 'google.co.uk', 'google.de',
+            'youtube.com',
+            'amazon.com', 'amazon.in', 'amazon.co.uk', 'amazon.de',
+            'amazon.co.jp', 'amazon.fr', 'amazon.ca', 'amazon.com.au',
+            'ebay.com', 'github.com', 'stackoverflow.com', 'reddit.com',
+            'leetcode.com', 'hackerrank.com', 'twitter.com', 'x.com',
             'facebook.com', 'linkedin.com', 'pinterest.com',
-            'aliexpress.com', 'alibaba.com', 'walmart.com'
+            'aliexpress.com', 'alibaba.com', 'walmart.com',
+            'flipkart.com', 'myntra.com', 'snapdeal.com',
         }
         
         self.load_model()
@@ -55,7 +65,8 @@ class MLService:
             self.feature_names = joblib.load(features_path)
             
             print(f" Model V2 loaded successfully!")
-            print(f"   Features: {len(self.feature_names)}")
+            feat_count = len(self.feature_names) if self.feature_names is not None else 0
+            print(f"   Features: {feat_count}")
             print(f"   Safe domains: {len(self.safe_domains)}")
             print(f"   Long URL OK domains: {len(self.long_url_ok_domains)}")
             
@@ -95,12 +106,15 @@ class MLService:
             if override_result:
                 return override_result
             
+            if not self.model or not self.feature_names:
+                raise RuntimeError("Model not loaded")
+            
             # Convert to DataFrame with correct column order
             feature_df = pd.DataFrame([features])
             feature_df = feature_df[self.feature_names]
             
             # Get prediction
-            prediction_proba = self.model.predict_proba(feature_df)[0]
+            prediction_proba = self.model.predict_proba(feature_df)[0]  # type: ignore[union-attr]
             prediction_score = float(prediction_proba[1])  # Probability of malicious
             
             # Determine status
@@ -122,7 +136,7 @@ class MLService:
             print(f" Prediction error for {url}: {e}")
             raise
     
-    def _apply_heuristic_overrides(self, url: str, features: Dict) -> Dict:
+    def _apply_heuristic_overrides(self, url: str, features: Dict) -> Optional[Dict]:
         """Apply heuristic rules to override ML prediction"""
         try:
             parsed = urlparse(url if url.startswith(('http://', 'https://')) else 'http://' + url)

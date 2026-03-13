@@ -84,12 +84,12 @@ class AnomalyDetector:
         features = self.extractor.extract(url)
         feature_vector = self.extractor.get_feature_vector(features)
 
-        scaled_vector = self.scaler.transform(
+        scaled_vector = self.scaler.transform(  # type: ignore[union-attr]
             np.array(feature_vector).reshape(1, -1)
         )
 
-        raw_score = self.model.score_samples(scaled_vector)[0]
-        decision = self.model.decision_function(scaled_vector)[0]
+        raw_score = self.model.score_samples(scaled_vector)[0]  # type: ignore[union-attr]
+        decision = self.model.decision_function(scaled_vector)[0]  # type: ignore[union-attr]
         anomaly_score = self._normalize_score(raw_score)
 
         deviations = self._find_deviations(features)
@@ -111,11 +111,11 @@ class AnomalyDetector:
                 'error': 'Anomaly model not loaded'
             }
 
-        scaled = self.scaler.transform(
+        scaled = self.scaler.transform(  # type: ignore[union-attr]
             np.array(feature_vector).reshape(1, -1)
         )
-        raw_score = self.model.score_samples(scaled)[0]
-        decision = self.model.decision_function(scaled)[0]
+        raw_score = self.model.score_samples(scaled)[0]  # type: ignore[union-attr]
+        decision = self.model.decision_function(scaled)[0]  # type: ignore[union-attr]
         anomaly_score = self._normalize_score(raw_score)
 
         return {
@@ -152,7 +152,7 @@ class AnomalyDetector:
         # Linear map: -0.38 → 0, -0.72 → 100
         risk = ((-0.38 - clamped) / 0.34) * 100.0
         
-        return round(max(0.0, min(100.0, risk)), 1)
+        return round(float(max(0.0, min(100.0, risk))), 1)  # type: ignore[call-overload]
 
     def _find_deviations(
         self, features: Dict[str, float], top_n: int = 5
@@ -168,8 +168,8 @@ class AnomalyDetector:
         deviations = {}
 
         for name, value in features.items():
-            if name in self.baseline_stats:
-                stats = self.baseline_stats[name]
+            if name in self.baseline_stats:  # type: ignore[operator]
+                stats = self.baseline_stats[name]  # type: ignore[index]
                 mean = stats.get('mean', 0.0)
                 std = stats.get('std', 1.0)
 
@@ -180,16 +180,16 @@ class AnomalyDetector:
 
                 if z_score > 1.5:  # Only report significant deviations
                     deviations[name] = {
-                        'value': round(value, 4),
-                        'baseline_mean': round(mean, 4),
-                        'baseline_std': round(std, 4),
-                        'z_score': round(z_score, 2),
+                        'value': round(float(value), 4),  # type: ignore[call-overload]
+                        'baseline_mean': round(float(mean), 4),  # type: ignore[call-overload]
+                        'baseline_std': round(float(std), 4),  # type: ignore[call-overload]
+                        'z_score': round(float(z_score), 2),  # type: ignore[call-overload]
                         'direction': 'above' if value > mean else 'below',
                     }
 
         # Return top N by z-score
         sorted_devs = dict(
-            sorted(deviations.items(), key=lambda x: x[1]['z_score'], reverse=True)[:top_n]
+            sorted(deviations.items(), key=lambda x: x[1]['z_score'], reverse=True)[:top_n]  # type: ignore[index]
         )
 
         return sorted_devs

@@ -118,7 +118,7 @@ def augment_legitimate_urls(urls, multiply_factor=3):
             prefix = random.choice(SUBDOMAIN_PREFIXES)
 
             # Parse to add subdomain before hostname
-            base = url.rstrip('/')
+            base = url.rstrip('/')  # type: ignore[union-attr]
             if prefix and '://' in base:
                 scheme, rest = base.split('://', 1)
                 # Don't add subdomain if one already exists (has 3+ parts)
@@ -176,7 +176,7 @@ def extract_features(urls, extractor, label=""):
         try:
             features_list.append(extractor.extract_features(url))
         except Exception:
-            errors += 1
+            errors += 1  # type: ignore[operator]
             features_list.append(extractor._get_default_features())
 
         if (i + 1) % 50000 == 0:
@@ -283,11 +283,11 @@ def test_specific_urls(model, extractor, feature_cols):
 
         status = "✓" if pred_label == expected else "✗"
         if pred_label == expected:
-            pass_count += 1
+            pass_count += 1  # type: ignore[operator]
         else:
-            fail_count += 1
+            fail_count += 1  # type: ignore[operator]
 
-        print(f"  {status} {url[:55]:<55} → {pred_label:<9} ({score:.3f}) | expected {expected}")
+        print(f"  {status} {url[:55]:<55} → {pred_label:<9} ({score:.3f}) | expected {expected}")  # type: ignore[str-index]
 
     print(f"\n  Results: {pass_count} passed, {fail_count} failed out of {len(test_cases)}")
     return fail_count
@@ -361,7 +361,7 @@ def main():
     y = all_features['label']
 
     print(f"\n  Combined dataset: {len(all_features)} samples, {len(feature_cols)} features")
-    print(f"  Label distribution: {(y==0).sum()} legit, {(y==1).sum()} malicious")
+    print(f"  Label distribution: {(y==0).sum()} legit, {(y==1).sum()} malicious")  # type: ignore[union-attr]
 
     # 5. Split
     X_temp, X_test, y_temp, y_test = train_test_split(X, y, test_size=0.15, random_state=42, stratify=y)

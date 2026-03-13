@@ -16,9 +16,13 @@ backend/venv/
 ml-models/venv/
 datasets/venv/
 
-# IDE
+# IDE & Type Checkers
 .vscode/
 .idea/
+pyrightconfig.json
+.pyre/
+.pyre_configuration
+.mypy_cache/
 *.swp
 *.swo
 *~
@@ -36,9 +40,7 @@ logs/
 *.env
 
 # Data files (too large for Git)
-datasets/raw/*.csv
-datasets/raw/*.json
-datasets/raw/*.txt
+datasets/raw/
 datasets/processed/*.csv
 
 # Model files (too large - will use Git LFS later if needed)

@@ -63,7 +63,7 @@ async def check_anomaly(request: AnomalyCheckRequest):
         # Run in thread pool (Isolation Forest scoring is CPU-bound)
         start = time.time()
         risk = await asyncio.to_thread(scorer.score, request.url)
-        elapsed_ms = round((time.time() - start) * 1000, 1)
+        elapsed_ms = round(float((time.time() - start) * 1000), 1)
 
         # Update stats
         anomaly_stats["total_checks"] += 1

@@ -273,7 +273,7 @@ def extract_features(urls, extractor, label=""):
             features = extractor.extract(url)
             features_list.append(features)
         except Exception:
-            errors += 1
+            errors += 1  # type: ignore[operator]
             features_list.append(
                 {name: 0.0 for name in extractor.FEATURE_NAMES}
             )
@@ -414,13 +414,13 @@ def evaluate_model(model, scaler, extractor, legit_df, malicious_df):
     print(f"\n  Legitimate URLs (should be NORMAL):")
     print(f"    Mean score:    {legit_scores.mean():.4f}")
     print(f"    Std score:     {legit_scores.std():.4f}")
-    print(f"    Flagged as anomaly: {(legit_decisions == -1).sum()}/{len(legit_urls)} "
+    print(f"    Flagged as anomaly: {(legit_decisions == -1).sum()}/{len(legit_urls)} "  # type: ignore[union-attr]
           f"({(legit_decisions == -1).mean()*100:.1f}%)")
 
     print(f"\n  Malicious URLs (should be ANOMALOUS):")
     print(f"    Mean score:    {mal_scores.mean():.4f}")
     print(f"    Std score:     {mal_scores.std():.4f}")
-    print(f"    Flagged as anomaly: {(mal_decisions == -1).sum()}/{len(mal_urls)} "
+    print(f"    Flagged as anomaly: {(mal_decisions == -1).sum()}/{len(mal_urls)} "  # type: ignore[union-attr]
           f"({(mal_decisions == -1).mean()*100:.1f}%)")
 
     separation = legit_scores.mean() - mal_scores.mean()
@@ -459,7 +459,7 @@ def evaluate_model(model, scaler, extractor, legit_df, malicious_df):
         score = model.score_samples(scaled)[0]
         decision = "ANOMALY" if model.predict(scaled)[0] == -1 else "NORMAL"
         mark = "[OK]" if expected.split()[-1] == decision else "[FAIL]"
-        print(f"    {mark} {url[:50]:<50} -> {decision:<8} (score: {score:.4f}) | {expected}")
+        print(f"    {mark} {url[:50]:<50} -> {decision:<8} (score: {score:.4f}) | {expected}")  # type: ignore[str-index]
 
 
 def save_model(model, scaler, baseline_stats, feature_names):
